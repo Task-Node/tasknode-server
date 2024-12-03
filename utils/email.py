@@ -20,6 +20,13 @@ SUCCESS_TEMPLATE = """
 <p>Feel free to reach out for any further assistance.</p>
 """
 
+VERIFICATION_TEMPLATE = """
+<h2>Verify Your Email</h2>
+<p>Welcome to Tasknode! Please click the link below to verify your email address:</p>
+<p><a href="{verification_url}">Verify Email</a></p>
+<p>If you didn't create this account, please ignore this email.</p>
+"""
+
 
 def send_email(emails: List[str], subject: str, html: str):
     resend_key = settings.RESEND_KEY

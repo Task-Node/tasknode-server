@@ -9,6 +9,7 @@ from database import get_db
 from models.user_models import User
 from utils.auth import VerifyToken
 from utils.logger import logger
+from utils.email import send_email, VERIFICATION_TEMPLATE
 
 
 auth = VerifyToken()
@@ -23,6 +24,18 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     email: str
     cognito_id: str
+    message: str
+
+
+class UserVerification(BaseModel):
+    email: EmailStr
+    verification_code: str
+
+
+class ConfirmForgotPassword(BaseModel):
+    email: EmailStr
+    new_password: str
+    confirmation_code: str
 
 
 # Update the router to include the database session dependency
@@ -36,7 +49,7 @@ async def create_user(
 ) -> UserResponse:
     try:
         logger.info(f"Creating user: {user_data.email}")
-        print(f"Creating user: {user_data.email}")
+        
         # Create user in Cognito
         boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
         cognito_client = boto_session.client("cognito-idp")
@@ -51,18 +64,17 @@ async def create_user(
         )
 
         # Create user in database
-        print("session", session)
-        print("cognito_response", cognito_response)
-        print("usersub", cognito_response["UserSub"])
-        print("email", user_data.email)
         user = User.create(session=session, cognito_id=cognito_response["UserSub"], email=user_data.email)
+        
         session.commit()
 
-        return UserResponse(email=user.email, cognito_id=user.cognito_id)
+        return UserResponse(
+            email=user.email,
+            cognito_id=user.cognito_id,
+            message="Please check your email for verification instructions"
+        )
     except Exception as e:
-        print(e)
-        # print stack trace
-        print(traceback.format_exc())
+        logger.error(f"Error creating user: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -87,3 +99,80 @@ async def login(user_data: UserCreate, session: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+
+@router.post("/verify")
+async def verify_user(verification_data: UserVerification):
+    try:
+        boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
+        cognito_client = boto_session.client("cognito-idp")
+
+        response = cognito_client.confirm_sign_up(
+            ClientId=settings.COGNITO_CLIENT_ID,
+            Username=verification_data.email,
+            ConfirmationCode=verification_data.verification_code
+        )
+
+        return {"message": "Email verified successfully"}
+    except Exception as e:
+        logger.error(f"Error verifying user: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/resend-verification")
+async def resend_verification(email: EmailStr):
+    try:
+        # Create Cognito client
+        boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
+        cognito_client = boto_session.client("cognito-idp")
+
+        # Resend verification code
+        response = cognito_client.resend_confirmation_code(
+            ClientId=settings.COGNITO_CLIENT_ID,
+            Username=email
+        )
+
+        return {"message": "Verification code resent successfully"}
+    except Exception as e:
+        logger.error(f"Error resending verification code: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    
+@router.post("/forgot-password")
+async def forgot_password(email: EmailStr):
+    try:
+        # Create Cognito client
+        boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
+        cognito_client = boto_session.client("cognito-idp")
+
+        # Initiate forgot password flow
+        response = cognito_client.forgot_password(
+            ClientId=settings.COGNITO_CLIENT_ID,
+            Username=email
+        )
+
+        return {"message": "Password reset code sent to your email"}
+    except Exception as e:
+        logger.error(f"Error initiating password reset: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/confirm-forgot-password")
+async def confirm_forgot_password(reset_data: ConfirmForgotPassword):
+    try:
+        # Create Cognito client
+        boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
+        cognito_client = boto_session.client("cognito-idp")
+
+        # Confirm forgot password
+        response = cognito_client.confirm_forgot_password(
+            ClientId=settings.COGNITO_CLIENT_ID,
+            Username=reset_data.email,
+            Password=reset_data.new_password,
+            ConfirmationCode=reset_data.confirmation_code
+        )
+
+        return {"message": "Password reset successfully"}
+    except Exception as e:
+        logger.error(f"Error resetting password: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=400, detail=str(e))
