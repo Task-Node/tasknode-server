@@ -50,7 +50,7 @@ def session_scope():
         logger.info("Closing session")
         session.close()
 
+
 def get_db():
     with session_scope() as session:
         yield session
-
