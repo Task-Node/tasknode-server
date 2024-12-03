@@ -120,7 +120,7 @@ def update_jobs_in_progress(db_session):
 
             # Update job status based on task status and exit code
             if task_status == "STOPPED":
-                user = User.get_by_cognito_id(db_session, job.user_id)
+                user = User.get_by_id(db_session, job.user_id)
                 if exit_code == 0:
                     send_email([user.email], "Tasknode task completed", SUCCESS_TEMPLATE.format(task_id=job.id))
                     Job.update_status(db_session, job.id, JobStatus.COMPLETED)

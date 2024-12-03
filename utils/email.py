@@ -15,7 +15,7 @@ FAILURE_TEMPLATE = """
 
 SUCCESS_TEMPLATE = """
 <h2 style="color: green;">Task Completed</h2>
-<p>Congratulations! The task with ID <strong>{task_id}</strong> has been completed successfully.</p>
+<p>The task with ID <strong>{task_id}</strong> has completed successfully.</p>
 <p>Thank you for using Tasknode.</p>
 <p>Feel free to reach out for any further assistance.</p>
 """
