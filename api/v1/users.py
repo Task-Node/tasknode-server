@@ -94,8 +94,15 @@ async def login(user_data: UserCreate, session: Session = Depends(get_db)):
             "refresh_token": auth_response["AuthenticationResult"]["RefreshToken"],
             "expires_in": auth_response["AuthenticationResult"]["ExpiresIn"],
         }
+    except cognito_client.exceptions.NotAuthorizedException:
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+    except cognito_client.exceptions.UserNotConfirmedException:
+        raise HTTPException(status_code=403, detail="User is not verified. Please check your email for verification instructions")
+    except cognito_client.exceptions.UserNotFoundException:
+        raise HTTPException(status_code=404, detail="User not found")
     except Exception as e:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        logger.error(f"Error during login: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during login")
 
 
 @router.post("/verify")

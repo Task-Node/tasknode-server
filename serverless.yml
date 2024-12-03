@@ -138,6 +138,7 @@ resources:
         ExplicitAuthFlows:
           - ALLOW_USER_SRP_AUTH
           - ALLOW_REFRESH_TOKEN_AUTH
+          - ALLOW_USER_PASSWORD_AUTH
         GenerateSecret: false
 
     # Update ECSCluster to remove the DependsOn since we're not creating the role
