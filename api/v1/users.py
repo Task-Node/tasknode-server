@@ -94,12 +94,13 @@ async def login(user_data: UserCreate, session: Session = Depends(get_db)):
             "refresh_token": auth_response["AuthenticationResult"]["RefreshToken"],
             "expires_in": auth_response["AuthenticationResult"]["ExpiresIn"],
         }
-    except cognito_client.exceptions.NotAuthorizedException:
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
     except cognito_client.exceptions.UserNotConfirmedException:
         raise HTTPException(status_code=403, detail="User is not verified. Please check your email for verification instructions")
-    except cognito_client.exceptions.UserNotFoundException:
-        raise HTTPException(status_code=404, detail="User not found")
+    except (
+        cognito_client.exceptions.NotAuthorizedException,
+        cognito_client.exceptions.UserNotFoundException,
+    ):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     except Exception as e:
         logger.error(f"Error during login: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred during login")
@@ -174,3 +175,34 @@ async def confirm_forgot_password(reset_data: ConfirmForgotPassword):
     except Exception as e:
         logger.error(f"Error resetting password: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/refresh-token")
+async def refresh_token(refresh_token: str):
+    try:
+        boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
+        cognito_client = boto_session.client("cognito-idp")
+
+        auth_response = cognito_client.initiate_auth(
+            ClientId=settings.COGNITO_CLIENT_ID,
+            AuthFlow="REFRESH_TOKEN_AUTH",
+            AuthParameters={"REFRESH_TOKEN": refresh_token},
+        )
+
+        return {
+            "access_token": auth_response["AuthenticationResult"]["AccessToken"],
+            "id_token": auth_response["AuthenticationResult"]["IdToken"],
+            "expires_in": auth_response["AuthenticationResult"]["ExpiresIn"],
+        }
+    except Exception as e:
+        logger.error(f"Error refreshing token: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+
+@router.get("/verify-token")
+async def verify_token(user=Security(auth.get_current_user)):
+    """
+    Endpoint to verify if a token is still valid.
+    The Security dependency will raise a 401 if the token is invalid.
+    """
+    return {"message": "Token is valid"}
