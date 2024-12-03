@@ -14,7 +14,7 @@ class Production(Default):
     FILE_DROP_BUCKET: str = "tasknode-file-drop-prd"
     PROCESSED_FILES_BUCKET: str = "tasknode-processed-files-prd"
 
-    CUSTOM_DOMAIN: str = "api.tasknode.xyz"
+    CUSTOM_DOMAIN: str = "api.tasknode.dev"
 
     # ecs
     ECS_CLUSTER: str = os.environ.get("ECS_CLUSTER", "TASKNODE-CLUSTER-PRD")

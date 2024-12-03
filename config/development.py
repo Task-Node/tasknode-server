@@ -14,4 +14,4 @@ class Development(Default):
     # unless using a custom domain.
     # ROOT_PATH: str = "/dev"
 
-    CUSTOM_DOMAIN: str = "api-dev.tasknode.xyz"
+    CUSTOM_DOMAIN: str = "api-dev.tasknode.dev"
