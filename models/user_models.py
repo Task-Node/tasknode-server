@@ -9,6 +9,7 @@ from config import settings
 from exceptions import TaskNodeException
 from utils.logger import logger
 
+
 class User(Base):
     __tablename__ = "users"
     id = Column(BigInteger, primary_key=True, autoincrement=True)

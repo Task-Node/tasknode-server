@@ -26,7 +26,7 @@ def send_email(emails: List[str], subject: str, html: str):
     resend.api_key = resend_key
     r = resend.Emails.send(
         {
-            "from": "no-reply@foobar.dev",
+            "from": "no-reply@tasknode.dev",
             "to": emails,
             "subject": subject,
             "html": html,

@@ -8,9 +8,9 @@ load_dotenv()
 
 class Default(BaseSettings):
     class Config:
-        env_file = '.env'
-        env_file_encoding = 'utf-8'
-    
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
     ENV: str = ""
     REGION: str = "us-east-1"
     SQLALCHEMY_DATABASE_URI: str = ""

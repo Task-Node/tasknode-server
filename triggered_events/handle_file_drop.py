@@ -5,7 +5,7 @@ try:
 except ImportError:
     pass
 
-from database import get_session, init_engine
+from database import session_scope, init_engine
 from constants import JobStatus
 from utils.logger import logger
 
@@ -26,7 +26,7 @@ def handler(event, context, s3_bucket=None, s3_key=None):
     logger.info(f"S3 bucket: {s3_bucket}")
     logger.info(f"S3 key: {s3_key}")
 
-    with get_session() as db_session:
+    with session_scope() as db_session:
         job = Job.create(db_session, s3_bucket, s3_key, JobStatus.PENDING)
         logger.info(f"Created job: {job}")
         db_session.commit()

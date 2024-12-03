@@ -11,14 +11,20 @@ from sqlalchemy import text
 
 from config import settings
 from constants import MAX_IN_PROGRESS, JobStatus
-from database import get_session, init_engine
+from database import session_scope, init_engine
 from models.job_models import Job
 from utils.email import send_email, FAILURE_TEMPLATE, SUCCESS_TEMPLATE
 from utils.logger import logger
 from utils.s3 import get_signed_url, get_signed_upload_url
 
 
-def create_task_definition(presigned_download_url, presigned_zip_upload_url, presigned_manifest_upload_url, presigned_output_log_upload_url, presigned_error_log_upload_url):
+def create_task_definition(
+    presigned_download_url,
+    presigned_zip_upload_url,
+    presigned_manifest_upload_url,
+    presigned_output_log_upload_url,
+    presigned_error_log_upload_url,
+):
     return {
         "family": "tasknode-processor",
         "networkMode": "awsvpc",
@@ -37,7 +43,7 @@ def create_task_definition(presigned_download_url, presigned_zip_upload_url, pre
                     {"name": "MANIFEST_UPLOAD_URL", "value": presigned_manifest_upload_url},
                     {"name": "OUTPUT_LOG_UPLOAD_URL", "value": presigned_output_log_upload_url},
                     {"name": "ERROR_LOG_UPLOAD_URL", "value": presigned_error_log_upload_url},
-                    {"name": "AWS_DEFAULT_REGION", "value": settings.REGION}
+                    {"name": "AWS_DEFAULT_REGION", "value": settings.REGION},
                 ],
                 "logConfiguration": {
                     "logDriver": "awslogs",
@@ -114,7 +120,9 @@ def update_jobs_in_progress(db_session):
             # Update job status based on task status and exit code
             if task_status == "STOPPED":
                 if exit_code == 0:
-                    send_email(settings.ADMIN_EMAILS, "Tasknode task completed", SUCCESS_TEMPLATE.format(task_id=job.id))
+                    send_email(
+                        settings.ADMIN_EMAILS, "Tasknode task completed", SUCCESS_TEMPLATE.format(task_id=job.id)
+                    )
                     Job.update_status(db_session, job.id, JobStatus.COMPLETED)
                 else:
                     send_email(settings.ADMIN_EMAILS, "Tasknode task failed", FAILURE_TEMPLATE.format(task_id=job.id))
@@ -125,11 +133,11 @@ def handle_files(event, context):
     """Main handler function."""
     init_engine()
 
-    with get_session() as db_session:
+    with session_scope() as db_session:
         try:
             # Start transaction with serializable isolation level
             db_session.execute(text("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"))
-            
+
             update_jobs_in_progress(db_session)
             in_progress_count = Job.get_number_of_in_progress(db_session)
 
@@ -138,11 +146,13 @@ def handle_files(event, context):
                 return
 
             # Add FOR UPDATE to lock the row
-            job = db_session.query(Job)\
-                .filter(Job.status == JobStatus.PENDING)\
-                .order_by(Job.created_at.asc())\
-                .with_for_update(skip_locked=True)\
+            job = (
+                db_session.query(Job)
+                .filter(Job.status == JobStatus.PENDING)
+                .order_by(Job.created_at.asc())
+                .with_for_update(skip_locked=True)
                 .first()
+            )
 
             if not job:
                 logger.info("No pending jobs found")
@@ -175,14 +185,20 @@ def handle_files(event, context):
                     content_type="text/plain",
                     expiration=60 * 60 * 48,
                 )
-                
+
                 assert presigned_download_url, "Presigned download URL is required"
                 assert presigned_zip_upload_url, "Presigned zip upload URL is required"
                 assert presigned_manifest_upload_url, "Presigned manifest upload URL is required"
                 assert presigned_output_log_upload_url, "Presigned output log upload URL is required"
                 assert presigned_error_log_upload_url, "Presigned error log upload URL is required"
-                
-                task_definition = create_task_definition(presigned_download_url, presigned_zip_upload_url, presigned_manifest_upload_url, presigned_output_log_upload_url, presigned_error_log_upload_url)
+
+                task_definition = create_task_definition(
+                    presigned_download_url,
+                    presigned_zip_upload_url,
+                    presigned_manifest_upload_url,
+                    presigned_output_log_upload_url,
+                    presigned_error_log_upload_url,
+                )
 
                 try:
                     response = register_and_run_task(task_definition)
@@ -190,7 +206,7 @@ def handle_files(event, context):
                 except Exception as e:
                     logger.error(f"Error launching task: {str(e)}")
                     Job.update_status(db_session, job.id, JobStatus.FAILED)
-                
+
             db_session.commit()
         except Exception as e:
             logger.error(f"Error processing job: {str(e)}")

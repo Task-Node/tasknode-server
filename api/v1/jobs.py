@@ -5,7 +5,7 @@ from pydantic import BaseModel
 import uuid
 
 from config import settings
-from database import get_session
+from database import get_db
 from models.user_models import User
 from utils.auth import VerifyToken
 from utils.s3 import get_signed_upload_url
@@ -15,7 +15,7 @@ auth = VerifyToken()
 
 
 # Update the router to include the database session dependency
-router = APIRouter(dependencies=[Depends(get_session)], prefix="/api/v1/jobs", tags=["Jobs API v1"])
+router = APIRouter(prefix="/api/v1/jobs", tags=["Jobs API v1"])
 
 
 class SignedUrlResponse(BaseModel):

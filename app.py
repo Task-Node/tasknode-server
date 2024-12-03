@@ -20,10 +20,15 @@ from utils.logger import logger
 
 
 def create_app():
-    if settings.SQLALCHEMY_DATABASE_URI:
-        logger.info(f"Initializing database engine with URI: {settings.SQLALCHEMY_DATABASE_URI}")
-        init_engine()
-        logger.info("Database engine initialized")
+    logger.info("Initializing FastAPI app")
+    
+    # Always initialize the database engine
+    if not settings.SQLALCHEMY_DATABASE_URI:
+        raise ValueError("SQLALCHEMY_DATABASE_URI must be set")
+    
+    logger.info(f"Initializing database engine with URI: {settings.SQLALCHEMY_DATABASE_URI}")
+    init_engine()
+    logger.info("Database engine initialized")
 
     logger.info("Creating FastAPI app")
     app = FastAPI(

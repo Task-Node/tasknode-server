@@ -11,11 +11,10 @@ from config import settings
 from constants import JobStatus
 
 
-
 class Job(Base):
     __tablename__ = "jobs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     s3_bucket = Column(String, nullable=False)
     s3_key = Column(String, nullable=False)
     fargate_task_arn = Column(String, nullable=True)
@@ -23,7 +22,7 @@ class Job(Base):
     created_at = Column(DateTime, nullable=False, default=get_utc_now)
     updated_at = Column(DateTime, nullable=False, default=get_utc_now)
 
-    def __init__(self, user_id: int, s3_bucket: str, s3_key: str, status: str,  fargate_task_arn: str = None):
+    def __init__(self, user_id: int, s3_bucket: str, s3_key: str, status: str, fargate_task_arn: str = None):
         self.id = uuid.uuid4()
         self.user_id = user_id
         self.s3_bucket = s3_bucket

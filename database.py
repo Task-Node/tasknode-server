@@ -38,7 +38,7 @@ def drop_db():
 
 
 @contextmanager
-def get_session():
+def session_scope():
     session = SessionLocal()
     try:
         yield session
@@ -49,3 +49,8 @@ def get_session():
     finally:
         logger.info("Closing session")
         session.close()
+
+def get_db():
+    with session_scope() as session:
+        yield session
+

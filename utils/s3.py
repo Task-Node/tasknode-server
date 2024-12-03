@@ -2,6 +2,7 @@ import boto3
 from config import settings
 from utils.logger import logger
 
+
 def download_file(bucket_name: str, file_name: str, local_file_path: str) -> bool:
     """
     Downloads a file from an S3 bucket
