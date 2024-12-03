@@ -8,8 +8,10 @@ except ImportError:
 from database import session_scope, init_engine
 from constants import JobStatus
 from utils.logger import logger
+from utils.s3 import get_file_metadata
 
 from models.job_models import Job
+from models.user_models import User
 
 
 def handler(event, context, s3_bucket=None, s3_key=None):
@@ -26,7 +28,19 @@ def handler(event, context, s3_bucket=None, s3_key=None):
     logger.info(f"S3 bucket: {s3_bucket}")
     logger.info(f"S3 key: {s3_key}")
 
+    # Get metadata using the utility function
+    metadata_response = get_file_metadata(s3_bucket, s3_key)
+    print(metadata_response)
+    print("-" * 100)
+
+    metadata = metadata_response.get("Metadata", {})
+    print(metadata)
+    cognito_id = metadata.get("cognito_id")
+
+    assert cognito_id, "Cognito ID is required"
+
     with session_scope() as db_session:
-        job = Job.create(db_session, s3_bucket, s3_key, JobStatus.PENDING)
+        user = User.get_by_cognito_id(db_session, cognito_id)
+        job = Job.create(db_session, user.id, s3_bucket, s3_key, JobStatus.PENDING)
         logger.info(f"Created job: {job}")
         db_session.commit()

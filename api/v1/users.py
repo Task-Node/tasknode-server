@@ -38,6 +38,10 @@ class ConfirmForgotPassword(BaseModel):
     confirmation_code: str
 
 
+class EmailRequest(BaseModel):
+    email: EmailStr
+
+
 # Update the router to include the database session dependency
 router = APIRouter(prefix="/api/v1/users", tags=["Users API v1"])
 
@@ -95,7 +99,9 @@ async def login(user_data: UserCreate, session: Session = Depends(get_db)):
             "expires_in": auth_response["AuthenticationResult"]["ExpiresIn"],
         }
     except cognito_client.exceptions.UserNotConfirmedException:
-        raise HTTPException(status_code=403, detail="User is not verified. Please check your email for verification instructions")
+        raise HTTPException(
+            status_code=403, detail="User is not verified. Please check your email for verification instructions"
+        )
     except (
         cognito_client.exceptions.NotAuthorizedException,
         cognito_client.exceptions.UserNotFoundException,
@@ -125,14 +131,16 @@ async def verify_user(verification_data: UserVerification):
 
 
 @router.post("/resend-verification")
-async def resend_verification(email: EmailStr):
+async def resend_verification(email_data: EmailRequest):
     try:
         # Create Cognito client
         boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
         cognito_client = boto_session.client("cognito-idp")
 
         # Resend verification code
-        response = cognito_client.resend_confirmation_code(ClientId=settings.COGNITO_CLIENT_ID, Username=email)
+        response = cognito_client.resend_confirmation_code(
+            ClientId=settings.COGNITO_CLIENT_ID, Username=email_data.email
+        )
 
         return {"message": "Verification code resent successfully"}
     except Exception as e:
@@ -141,14 +149,14 @@ async def resend_verification(email: EmailStr):
 
 
 @router.post("/forgot-password")
-async def forgot_password(email: EmailStr):
+async def forgot_password(email_data: EmailRequest):
     try:
         # Create Cognito client
         boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
         cognito_client = boto_session.client("cognito-idp")
 
         # Initiate forgot password flow
-        response = cognito_client.forgot_password(ClientId=settings.COGNITO_CLIENT_ID, Username=email)
+        response = cognito_client.forgot_password(ClientId=settings.COGNITO_CLIENT_ID, Username=email_data.email)
 
         return {"message": "Password reset code sent to your email"}
     except Exception as e:

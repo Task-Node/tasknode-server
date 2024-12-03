@@ -29,7 +29,14 @@ async def status() -> dict:
 
 
 @router.get("/get_zip_upload_url", response_model=SignedUrlResponse)
-async def get_zip_upload_url() -> SignedUrlResponse:
+async def get_zip_upload_url(
+    session: Session = Depends(get_db),
+    current_user: dict = Security(auth.get_current_user),
+) -> SignedUrlResponse:
+    cognito_id = current_user["sub"]
+
     filename = f"{uuid.uuid4()}.zip"
-    signed_url = get_signed_upload_url(settings.FILE_DROP_BUCKET, filename, "application/zip", 30)
+    signed_url = get_signed_upload_url(
+        settings.FILE_DROP_BUCKET, filename, "application/zip", 30, cognito_id=cognito_id
+    )
     return SignedUrlResponse(signedUrl=signed_url, s3Key=filename)

@@ -47,6 +47,10 @@ class User(Base):
         return session.query(cls).all()
 
     @classmethod
+    def get_by_id(cls, session, id: int):
+        return session.query(cls).filter(cls.id == id).first()
+
+    @classmethod
     def get_by_cognito_id(cls, session, cognito_id: str):
         item = session.query(cls).filter(cls.cognito_id == cognito_id).first()
         if not item:

@@ -101,7 +101,9 @@ def get_signed_url(bucket_name: str, file_key: str, expiration: int = 60) -> str
     return url
 
 
-def get_signed_upload_url(bucket_name: str, file_key: str, content_type: str, expiration: int = 60) -> str:
+def get_signed_upload_url(
+    bucket_name: str, file_key: str, content_type: str, expiration: int = 60, cognito_id: str = None
+) -> str:
     """
     Generates a presigned URL for a file in an S3 bucket
     """
@@ -109,11 +111,18 @@ def get_signed_upload_url(bucket_name: str, file_key: str, content_type: str, ex
     boto_session = boto3.session.Session(profile_name=settings.AWS_PROFILE)
     s3 = boto_session.client("s3")
 
+    params = {
+        "Bucket": bucket_name,
+        "Key": file_key,
+        "ContentType": content_type,
+        "Metadata": {"cognito_id": cognito_id},
+    }
+
     # Generate the presigned URL
     try:
         url = s3.generate_presigned_url(
             ClientMethod="put_object",
-            Params={"Bucket": bucket_name, "Key": file_key, "ContentType": content_type},
+            Params=params,
             ExpiresIn=expiration,
         )
     except Exception as e:

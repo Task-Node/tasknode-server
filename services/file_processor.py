@@ -13,6 +13,7 @@ from config import settings
 from constants import MAX_IN_PROGRESS, JobStatus
 from database import session_scope, init_engine
 from models.job_models import Job
+from models.user_models import User
 from utils.email import send_email, FAILURE_TEMPLATE, SUCCESS_TEMPLATE
 from utils.logger import logger
 from utils.s3 import get_signed_url, get_signed_upload_url
@@ -119,13 +120,12 @@ def update_jobs_in_progress(db_session):
 
             # Update job status based on task status and exit code
             if task_status == "STOPPED":
+                user = User.get_by_cognito_id(db_session, job.user_id)
                 if exit_code == 0:
-                    send_email(
-                        settings.ADMIN_EMAILS, "Tasknode task completed", SUCCESS_TEMPLATE.format(task_id=job.id)
-                    )
+                    send_email([user.email], "Tasknode task completed", SUCCESS_TEMPLATE.format(task_id=job.id))
                     Job.update_status(db_session, job.id, JobStatus.COMPLETED)
                 else:
-                    send_email(settings.ADMIN_EMAILS, "Tasknode task failed", FAILURE_TEMPLATE.format(task_id=job.id))
+                    send_email([user.email], "Tasknode task failed", FAILURE_TEMPLATE.format(task_id=job.id))
                     Job.update_status(db_session, job.id, JobStatus.FAILED)
 
 
@@ -158,18 +158,21 @@ def handle_files(event, context):
                 logger.info("No pending jobs found")
             else:
                 logger.info(f"Processing job: {job}")
+                cognito_id = User.get_by_id(db_session, job.user_id).cognito_id
                 presigned_download_url = get_signed_url(job.s3_bucket, job.s3_key, expiration=180)
                 presigned_zip_upload_url = get_signed_upload_url(
                     settings.PROCESSED_FILES_BUCKET,
                     f"{job.id}/files.zip",
                     content_type="application/zip",
                     expiration=60 * 60 * 48,
+                    cognito_id=cognito_id,
                 )
                 presigned_manifest_upload_url = get_signed_upload_url(
                     settings.PROCESSED_FILES_BUCKET,
                     f"{job.id}/manifest.txt",
                     content_type="text/plain",
                     expiration=60 * 60 * 48,
+                    cognito_id=cognito_id,
                 )
 
                 presigned_output_log_upload_url = get_signed_upload_url(
@@ -177,6 +180,7 @@ def handle_files(event, context):
                     f"{job.id}/output.log",
                     content_type="text/plain",
                     expiration=60 * 60 * 48,
+                    cognito_id=cognito_id,
                 )
 
                 presigned_error_log_upload_url = get_signed_upload_url(
@@ -184,6 +188,7 @@ def handle_files(event, context):
                     f"{job.id}/error.log",
                     content_type="text/plain",
                     expiration=60 * 60 * 48,
+                    cognito_id=cognito_id,
                 )
 
                 assert presigned_download_url, "Presigned download URL is required"
