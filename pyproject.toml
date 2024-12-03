@@ -1,0 +1,49 @@
+[tool.poetry]
+name = "tasknode"  
+version = "0.0.0"
+description = "Tasknode Server"
+authors = ["Daniel Newman <me@dtnewman.com>"]
+license = ""
+package-mode = false
+
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.95.1"
+uvicorn = {extras = ["standard"], version = "^0.22.0"}
+mangum = "^0.17.0"
+sqlalchemy = "^2.0.36"
+black = "^23.3.0"
+alembic = "^1.11.0"
+pytest = "^7.3.1"
+httpx = "^0.24.0"
+pytest-env = "^0.8.1"
+pytest-cov = "^4.1.0"
+python-multipart = "^0.0.6"
+boto3 = "^1.34.48"
+requests = "^2.31.0"
+python-jose = "^3.3.0"
+email-validator = "^2.2.0"
+psycopg2-binary = "^2.9.10"
+resend = "^2.4.0"
+python-dotenv = "^1.0.1"
+
+[tool.pyright]
+pythonVersion = "3.10"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+
+
+[tool.pytest.ini_options]
+env = [
+    "env=Test"
+]
+addopts = "--cov --cov-report term-missing"
+
+[tool.coverage.run]
+omit = ["config/*"]

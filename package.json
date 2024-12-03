@@ -1,0 +1,29 @@
+{
+  "name": "tasknode",
+  "version": "0.0.0",
+  "description": "tasknode Server",
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "serverless": "^3.38.0",
+    "serverless-domain-manager": "^7.1.2",
+    "serverless-plugin-warmup": "^8.3.0",
+    "serverless-prune-plugin": "^2.0.2",
+    "serverless-python-requirements": "^6.0.1"
+  },
+  "scripts": {
+    "start": "cross-env env=local poetry run python manage.py runserver",
+    "start:dev": "cross-env env=dev poetry run python manage.py runserver",
+    "start:prd": "cross-env env=prd poetry run python manage.py runserver",
+    "test": "poetry run pytest",
+    "lint": "black .",
+    "generate_config": "cross-env env=dev python -m scripts.generate_serverless_config",
+    "generate_config:prd": "cross-env env=prd python -m scripts.generate_serverless_config",
+    "deploy": "npm install && cross-env env=dev python -m scripts.generate_serverless_config && sh -c 'env=dev sh scripts/container_deploy.sh' && cross-env AWS_PROFILE=default sls deploy --stage=dev",
+    "deploy:prd": "npm install && cross-env env=prd python -m scripts.generate_serverless_config && sh -c 'env=prd sh scripts/container_deploy.sh' && cross-env AWS_PROFILE=default sls deploy --stage=prd",
+    "undeploy": "cross-env env=dev sls AWS_PROFILE=default remove --stage=dev",
+    "undeploy:prd": "cross-env env=prd AWS_PROFILE=default sls remove --stage=prd"
+  },
+  "keywords": [],
+  "author": "",
+  "license": ""
+}

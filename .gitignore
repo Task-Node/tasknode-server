@@ -1,0 +1,31 @@
+*.pyc
+node_modules/
+
+# testing files
+.coverage
+.pytest_cache
+__pycache__
+
+# jetbrains IDE files
+/.idea/*
+.fleet
+
+# vscode
+.vscode
+
+# serverless stuff
+.serverless
+.serverless-wsgi
+_warmup
+.warmup
+.requirements.zip
+serverless_config*.json
+
+# config overrides
+/config/local_overrides.py
+
+# dotenv
+.env
+.env.local
+.env.development
+.env.production

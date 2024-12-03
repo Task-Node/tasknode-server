@@ -1,0 +1,242 @@
+service: tasknode
+frameworkVersion: "3"
+
+plugins:
+  - serverless-python-requirements
+  - serverless-prune-plugin
+  - serverless-domain-manager
+  - serverless-plugin-warmup
+
+package:
+  exclude:
+    - node_modules/**
+    - .venv/**
+    - alembic/**
+
+provider:
+  name: aws
+  runtime: python3.10
+  stage: ${opt:stage, 'dev'}
+  environment:
+    env: ${file(./serverless_config_${self:provider.stage}.json):ENV}
+    COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+    ECS_CLUSTER: !Ref ECSCluster
+  vpc:
+    securityGroupIds: ${file(./serverless_config_${self:provider.stage}.json):VPC_SECURITY_GROUP_IDS}
+    subnetIds: ${file(./serverless_config_${self:provider.stage}.json):VPC_SUBNET_IDS}
+
+  # setup permissions for AWS secrets, S3, etc.
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:DeleteObject
+        - s3:PutObjectTagging
+        - s3:PutObject
+        - s3:PutObjectAcl
+        - s3:GetBucketLocation
+        - s3:PutPresignedUrl
+      Resource:
+        - arn:aws:s3:::${file(./serverless_config_${self:provider.stage}.json):FILE_DROP_BUCKET}/*
+        - arn:aws:s3:::${file(./serverless_config_${self:provider.stage}.json):PROCESSED_FILES_BUCKET}/*
+    - Effect: Allow
+      Action:
+        - s3:ListBucket
+      Resource:
+        - arn:aws:s3:::${file(./serverless_config_${self:provider.stage}.json):FILE_DROP_BUCKET}
+        - arn:aws:s3:::${file(./serverless_config_${self:provider.stage}.json):PROCESSED_FILES_BUCKET}
+    # cognito
+    - Effect: Allow
+      Action:
+        - cognito-idp:AdminGetUser
+      Resource:
+        - arn:aws:cognito-idp:${file(./serverless_config_${self:provider.stage}.json):COGNITO_USER_POOL_REGION}:${file(./serverless_config_${self:provider.stage}.json):AWS_ACCOUNT_ID}:userpool/${file(./serverless_config_${self:provider.stage}.json):COGNITO_USER_POOL}
+    - Effect: Allow
+      Action:
+        - ecs:RegisterTaskDefinition
+        - ecs:RunTask
+        - ecs:DescribeTasks
+        - ecs:ListTaskDefinitions
+        - iam:PassRole
+      Resource: '*'
+resources:
+  Resources:
+    # PROCESSED_FILES_BUCKET with CORS
+    FileDropBucket:
+      Type: "AWS::S3::Bucket"
+      Properties:
+        BucketName: ${file(./serverless_config_${self:provider.stage}.json):FILE_DROP_BUCKET}
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - "*"
+              AllowedHeaders:
+                - "*"
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
+              MaxAge: 3000
+    ProcessedFilesBucket:
+      Type: "AWS::S3::Bucket"
+      Properties:
+        BucketName: ${file(./serverless_config_${self:provider.stage}.json):PROCESSED_FILES_BUCKET}
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - "*"
+              AllowedHeaders:
+                - "*"
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
+              MaxAge: 3000
+
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      DeletionPolicy: Retain
+      Properties:
+        UserPoolName: ${file(./serverless_config_${self:provider.stage}.json):COGNITO_USER_POOL}
+        AutoVerifiedAttributes:
+          - email
+        UsernameAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireNumbers: false
+            RequireSymbols: false
+            RequireUppercase: false
+        Schema:
+          - Name: email
+            AttributeDataType: String
+            Mutable: true
+            Required: true
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      DependsOn: CognitoUserPool
+      Properties:
+        ClientName: ${file(./serverless_config_${self:provider.stage}.json):COGNITO_USER_POOL}-client
+        UserPoolId: !Ref CognitoUserPool
+        ExplicitAuthFlows:
+          - ALLOW_USER_SRP_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        GenerateSecret: false
+
+    # Update ECSCluster to remove the DependsOn since we're not creating the role
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+      Properties:
+        ClusterName: ${file(./serverless_config_${self:provider.stage}.json):ECS_CLUSTER}
+        CapacityProviders:
+          - FARGATE
+        DefaultCapacityProviderStrategy:
+          - CapacityProvider: FARGATE
+            Weight: 1
+
+    # Add ECS Task Execution Role
+    ECSTaskExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${file(./serverless_config_${self:provider.stage}.json):ECS_TASK_EXECUTION_ROLE}
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: ecs-tasks.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        # Add inline policy for CloudWatch Logs permissions
+        Policies:
+          - PolicyName: ECSTaskCloudWatchLogs
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !GetAtt ECSTaskLogGroup.Arn
+          - PolicyName: ECRAccess
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ecr:GetAuthorizationToken
+                    - ecr:BatchCheckLayerAvailability
+                    - ecr:GetDownloadUrlForLayer
+                    - ecr:BatchGetImage
+                  Resource: '*'
+
+    # Add CloudWatch Log Group for ECS tasks
+    ECSTaskLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: /ecs/tasknode-processor
+        RetentionInDays: 3    # Adjust retention period as needed
+
+    TaskNodeECRRepository:
+      Type: AWS::ECR::Repository
+      Properties:
+        RepositoryName: tasknode-processor
+        ImageScanningConfiguration:
+          ScanOnPush: true
+
+custom:
+  pythonRequirements:
+    requirePoetryLockFile: true
+    slim: true
+    zip: true
+    dockerizePip: non-linux  # needed for psycopg2
+  prune:
+    automatic: true
+    number: 3
+  customDomain:
+    domainName: ${file(./serverless_config_${self:provider.stage}.json):CUSTOM_DOMAIN}
+    basePath: ""
+    endpointType: "regional"
+  warmup:
+    default:
+      enabled: true
+      concurrency: 4
+
+functions:
+  app:
+    handler: app.lambda_handler
+    timeout: 90
+    url: true # use a function URL to get around 30 second timeout issues with API Gateway
+    events:
+      - http:
+          method: any
+          path: /{proxy+}
+  
+  fileDropHandler:
+    handler: triggered_events.handle_file_drop.handler
+    ephemeralStorageSize: 4096
+    timeout: 900
+    memorySize: 2048 # might need to increase this
+    events:
+      - s3:
+          bucket: !Ref FileDropBucket
+          existing: true
+          event: s3:ObjectCreated:*
+    warmup:
+      default:
+        enabled: false
+
+  processFiles:
+    handler: services.file_processor.handle_files
+    events:
+      - schedule: rate(1 minute)
+
