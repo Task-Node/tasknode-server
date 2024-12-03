@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, String, Enum as SQLAlchemyEnum
+from sqlalchemy import Column, DateTime, String, Enum as SQLAlchemyEnum, BigInteger, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
@@ -10,13 +10,12 @@ from datetime import datetime
 from config import settings
 from constants import JobStatus
 
-from exceptions import FormFillerException
 
 
 class Job(Base):
     __tablename__ = "jobs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # user_id = Column(BigInteger, nullable=False)
+    user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
     s3_bucket = Column(String, nullable=False)
     s3_key = Column(String, nullable=False)
     fargate_task_arn = Column(String, nullable=True)
@@ -24,8 +23,9 @@ class Job(Base):
     created_at = Column(DateTime, nullable=False, default=get_utc_now)
     updated_at = Column(DateTime, nullable=False, default=get_utc_now)
 
-    def __init__(self, s3_bucket: str, s3_key: str, status: str, fargate_task_arn: str = None):
+    def __init__(self, user_id: int, s3_bucket: str, s3_key: str, status: str,  fargate_task_arn: str = None):
         self.id = uuid.uuid4()
+        self.user_id = user_id
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.status = status
@@ -37,8 +37,8 @@ class Job(Base):
         return f"<Job {self.id} {self.s3_bucket} {self.s3_key} {self.status}>"
 
     @classmethod
-    def create(cls, session, s3_bucket: str, s3_key: str, status: str, fargate_task_arn: str = None):
-        item = cls(s3_bucket, s3_key, status, fargate_task_arn)
+    def create(cls, session, user_id: int, s3_bucket: str, s3_key: str, status: str, fargate_task_arn: str = None):
+        item = cls(user_id, s3_bucket, s3_key, status, fargate_task_arn)
         session.add(item)
         session.flush()
         return item
@@ -66,3 +66,7 @@ class Job(Base):
             update["fargate_task_arn"] = fargate_task_arn
         session.query(cls).filter(cls.id == id).update(update)
         session.flush()
+
+    @classmethod
+    def get_jobs_by_user_id(cls, session, user_id: int):
+        return session.query(cls).filter(cls.user_id == user_id).all()

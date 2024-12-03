@@ -1,4 +1,4 @@
-class FormFillerException(Exception):
+class TaskNodeException(Exception):
     default_message = "Backend error"
     default_status_code = 400
 

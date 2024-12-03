@@ -13,7 +13,7 @@ from mangum import Mangum
 
 
 from database import init_engine
-from exceptions import FormFillerException
+from exceptions import TaskNodeException
 from config import settings
 from api.v1 import jobs, users
 from utils.logger import logger
@@ -56,8 +56,8 @@ def create_app():
     async def status():
         return {"status": "ok"}
 
-    @app.exception_handler(FormFillerException)
-    async def app_exception_handler(req, exc: FormFillerException):
+    @app.exception_handler(TaskNodeException)
+    async def app_exception_handler(req, exc: TaskNodeException):
         return JSONResponse(status_code=exc.status_code, content=dict(message=exc.message))
 
     return app

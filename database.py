@@ -43,6 +43,7 @@ def get_session():
     try:
         yield session
     except Exception as e:
+        logger.info("Rolling back session due to error")
         session.rollback()
         raise e
     finally:

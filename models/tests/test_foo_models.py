@@ -8,7 +8,7 @@ from models.foo_models import Foo
 from utils.test_utils import BaseTestCase
 import pytest
 
-from exceptions import FormFillerException
+from exceptions import TaskNodeException
 
 
 class TestFoo(BaseTestCase):

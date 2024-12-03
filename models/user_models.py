@@ -3,12 +3,10 @@ from sqlalchemy.orm import relationship
 from utils.utils import get_utc_now
 from database import Base
 from datetime import datetime
-import random
-import string
 import boto3
 from config import settings
 
-from exceptions import FormFillerException
+from exceptions import TaskNodeException
 from utils.logger import logger
 
 class User(Base):
@@ -17,6 +15,7 @@ class User(Base):
     cognito_id = Column(String, nullable=False, unique=True)
     email = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False, default=get_utc_now)
+    jobs = relationship("Job", backref="user")
 
     def __init__(
         self,
@@ -39,7 +38,7 @@ class User(Base):
             session.flush()
         except Exception as e:
             session.rollback()
-            raise FormFillerException(f"Failed to create user: {e}")
+            raise TaskNodeException(f"Failed to create user: {e}")
         return item
 
     @classmethod
@@ -59,18 +58,18 @@ class User(Base):
                     UserPoolId=settings.COGNITO_USER_POOL_ID, Username=cognito_id
                 )
                 if not cognito_user:
-                    raise FormFillerException(f"User not found: {cognito_id}")
+                    raise TaskNodeException(f"User not found: {cognito_id}")
                 logger.info(cognito_user)
 
                 email = next(
                     (attr["Value"] for attr in cognito_user["UserAttributes"] if attr["Name"] == "email"), None
                 )
                 if not email:
-                    raise FormFillerException(f"User not found: {cognito_id}")
+                    raise TaskNodeException(f"User not found: {cognito_id}")
                 item = cls(cognito_id=cognito_id, email=email)
                 session.add(item)
                 session.flush()
             except Exception as e:
                 logger.error(e)
-                raise FormFillerException(f"User not found: {e}")
+                raise TaskNodeException(f"User not found: {e}")
         return item
