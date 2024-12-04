@@ -91,7 +91,7 @@ def get_signed_url(bucket_name: str, file_key: str, expiration: int = 60, filena
         "Bucket": bucket_name,
         "Key": file_key,
     }
-    
+
     # Add content disposition if filename is provided
     if filename:
         params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
