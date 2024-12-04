@@ -8,7 +8,7 @@ from utils.utils import get_secret
 
 FAILURE_TEMPLATE = """
 <h2 style="color: red;">Task Failed</h2>
-<p>Unfortunately, the task with ID <strong>{task_id}</strong> has failed.</p>
+<p>The task with ID <strong>{task_id}</strong> has failed.</p>
 <p>Please check the logs for more details and try again.</p>
 <p>Contact support if the issue persists.</p>
 """

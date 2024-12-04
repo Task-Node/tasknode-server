@@ -37,6 +37,14 @@ SCRIPT_NAME=$(cat run_info.json | jq -r '.script')
 echo "Script to run: $SCRIPT_NAME"
 ls -l
 
+# Convert notebook to python if it's a .ipynb file
+if [ "$SCRIPT_NAME" = *.ipynb ]; then
+    echo "Converting Jupyter notebook ($SCRIPT_NAME) to Python script..."
+    jupyter nbconvert --to python "$SCRIPT_NAME" --output "${SCRIPT_NAME%.*}_converted"
+    SCRIPT_NAME="${SCRIPT_NAME%.*}_converted.py"
+    echo "New script to run: $SCRIPT_NAME"
+fi
+
 # Run the script in background with unbuffered output
 python -u "$SCRIPT_NAME" > tasknode_output.log 2> tasknode_error.log &
 SCRIPT_PID=$!
@@ -44,8 +52,8 @@ SCRIPT_PID=$!
 # Upload logs every 30 seconds while script is running
 while kill -0 $SCRIPT_PID 2>/dev/null; do
     echo "Uploading interim log files..."
-    curl -H 'Content-Type: text/plain' -T tasknode_output.log "$OUTPUT_LOG_UPLOAD_URL" || echo 'Interim output log upload failed'
-    curl -H 'Content-Type: text/plain' -T tasknode_error.log "$ERROR_LOG_UPLOAD_URL" || echo 'Interim error log upload failed'
+    curl -H 'Content-Type: text/plain' -T tasknode_output.log "$OUTPUT_LOG_UPLOAD_URL" > /dev/null 2>&1 || echo 'Interim output log upload failed'
+    curl -H 'Content-Type: text/plain' -T tasknode_error.log "$ERROR_LOG_UPLOAD_URL" > /dev/null 2>&1 || echo 'Interim error log upload failed'
     sleep 30
 done
 
@@ -55,8 +63,8 @@ SCRIPT_EXIT_CODE=$?
 
 # Upload final logs
 echo "Uploading final log files..."
-curl -v -H 'Content-Type: text/plain' -T tasknode_output.log "$OUTPUT_LOG_UPLOAD_URL" || echo 'Final output log upload failed'
-curl -v -H 'Content-Type: text/plain' -T tasknode_error.log "$ERROR_LOG_UPLOAD_URL" || echo 'Final error log upload failed'
+curl -v -H 'Content-Type: text/plain' -T tasknode_output.log "$OUTPUT_LOG_UPLOAD_URL" > /dev/null 2>&1 || echo 'Final output log upload failed'
+curl -v -H 'Content-Type: text/plain' -T tasknode_error.log "$ERROR_LOG_UPLOAD_URL" > /dev/null 2>&1 || echo 'Final error log upload failed'
 
 # Exit with the script's exit code
 if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
