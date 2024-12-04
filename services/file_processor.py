@@ -6,10 +6,10 @@ except ImportError:
     pass
 
 
-from datetime import datetime
-from zoneinfo import ZoneInfo
 import boto3
+from datetime import datetime
 from sqlalchemy import text
+from zoneinfo import ZoneInfo
 
 from config import settings
 from constants import MAX_IN_PROGRESS, JobStatus
@@ -19,6 +19,7 @@ from models.user_models import User
 from utils.email import send_email, FAILURE_TEMPLATE, SUCCESS_TEMPLATE
 from utils.logger import logger
 from utils.s3 import get_signed_url, get_signed_upload_url
+from utils.utils import format_file_size
 
 
 def create_task_definition(
@@ -100,6 +101,8 @@ def process_manifest_file(db_session, job: Job):
     s3_bucket = settings.PROCESSED_FILES_BUCKET
     s3_key = f"{job.id}/manifest.txt"
 
+    job_files: list[JobFiles] = []
+
     print(f"Reading manifest file from S3: {s3_bucket}/{s3_key}")
 
     try:
@@ -112,10 +115,13 @@ def process_manifest_file(db_session, job: Job):
                 continue
             file_name, file_size, file_unix_timestamp = line.split(",")
             file_timestamp = datetime.fromtimestamp(int(file_unix_timestamp), tz=ZoneInfo("UTC"))
-            JobFiles.create(db_session, job.id, s3_bucket, s3_key, file_name, file_size, file_timestamp)
+            jobfile = JobFiles.create(db_session, job.id, s3_bucket, s3_key, file_name, file_size, file_timestamp)
+            job_files.append(jobfile)
     except Exception as e:
         logger.error(f"Error reading manifest file from S3: {str(e)}")
         raise
+
+    return job_files
 
 
 def update_jobs_in_progress(db_session):
@@ -148,11 +154,46 @@ def update_jobs_in_progress(db_session):
             if task_status == "STOPPED":
                 user = User.get_by_id(db_session, job.user_id)
                 if exit_code == 0:
-                    # get the manifest file from s3 ('{job.id}/manifest.txt')
-                    s3_bucket = settings.PROCESSED_FILES_BUCKET
-                    s3_key = f"{job.id}/manifest.txt"
-                    process_manifest_file(db_session, job)
-                    send_email([user.email], "Tasknode task completed", SUCCESS_TEMPLATE.format(task_id=job.id))
+                    job_files = process_manifest_file(db_session, job)
+
+                    # Create file list HTML
+                    file_list_html = "\n".join(
+                        [
+                            f"<li>{job_file.file_name} ({format_file_size(float(job_file.file_size))})</li>"
+                            for job_file in job_files
+                        ]
+                    )
+
+                    signed_url_file_zip = get_signed_url(
+                        settings.PROCESSED_FILES_BUCKET, 
+                        f"{job.id}/files.zip", 
+                        expiration=60 * 60 * 24,
+                        filename="processed_files.zip"
+                    )
+                    signed_url_output_log = get_signed_url(
+                        settings.PROCESSED_FILES_BUCKET, 
+                        f"{job.id}/output.log", 
+                        expiration=60 * 60 * 24,
+                        filename="output.log"
+                    )
+                    signed_url_error_log = get_signed_url(
+                        settings.PROCESSED_FILES_BUCKET, 
+                        f"{job.id}/error.log", 
+                        expiration=60 * 60 * 24,
+                        filename="error.log"
+                    )
+
+                    send_email(
+                        [user.email],
+                        "Tasknode task completed",
+                        SUCCESS_TEMPLATE.format(
+                            task_id=job.id,
+                            file_list=file_list_html,
+                            signed_url_file_zip=signed_url_file_zip,
+                            signed_url_output_log=signed_url_output_log,
+                            signed_url_error_log=signed_url_error_log,
+                        ),
+                    )
                     Job.update_status(db_session, job.id, JobStatus.COMPLETED)
                 else:
                     send_email([user.email], "Tasknode task failed", FAILURE_TEMPLATE.format(task_id=job.id))

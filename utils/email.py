@@ -16,6 +16,17 @@ FAILURE_TEMPLATE = """
 SUCCESS_TEMPLATE = """
 <h2 style="color: green;">Task Completed</h2>
 <p>The task with ID <strong>{task_id}</strong> has completed successfully.</p>
+<p>The following files were generated:</p>
+<ul>
+{file_list}
+</ul>
+<p>You can download your files using these links (valid for 24 hours):</p>
+<ul>
+    <li><a href="{signed_url_output_log}">Output Log</a></li>
+    <li><a href="{signed_url_error_log}">Error Log</a></li>
+    <li><a href="{signed_url_file_zip}">Generated Files (ZIP)</a></li>
+</ul>
+<p><strong>Note:</strong> These download links will expire in 24 hours.</p>
 <p>Thank you for using Tasknode.</p>
 <p>Feel free to reach out for any further assistance.</p>
 """

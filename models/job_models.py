@@ -8,7 +8,6 @@ from utils.utils import get_utc_now
 from database import Base
 
 
-
 class Job(Base):
     __tablename__ = "jobs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -81,6 +80,10 @@ class Job(Base):
             .offset(offset)
             .all()
         )
+
+    @classmethod
+    def get_total_count_by_user_id(cls, session, user_id: int) -> int:
+        return session.query(cls).filter(cls.user_id == user_id).count()
 
 
 class JobFiles(Base):

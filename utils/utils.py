@@ -29,3 +29,11 @@ def get_secret(secret_name, region_name="us-east-1"):
     secret = get_secret_value_response["SecretString"]
 
     return secret
+
+
+def format_file_size(size_in_bytes):
+    for unit in ["bytes", "KB", "MB", "GB"]:
+        if size_in_bytes < 1024.0:
+            return f"{size_in_bytes:.1f} {unit}"
+        size_in_bytes /= 1024.0
+    return f"{size_in_bytes:.1f} TB"

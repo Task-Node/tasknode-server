@@ -79,7 +79,7 @@ def copy_file(source_bucket: str, source_key: str, destination_bucket: str, dest
     return True
 
 
-def get_signed_url(bucket_name: str, file_key: str, expiration: int = 60) -> str:
+def get_signed_url(bucket_name: str, file_key: str, expiration: int = 60, filename: str = None) -> str:
     """
     Generates a presigned URL for a file in an S3 bucket
     """
@@ -87,11 +87,20 @@ def get_signed_url(bucket_name: str, file_key: str, expiration: int = 60) -> str
     boto_session = boto3.session.Session(profile_name=settings.AWS_PROFILE)
     s3 = boto_session.client("s3")
 
+    params = {
+        "Bucket": bucket_name,
+        "Key": file_key,
+    }
+    
+    # Add content disposition if filename is provided
+    if filename:
+        params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
+
     # Generate the presigned URL
     try:
         url = s3.generate_presigned_url(
             ClientMethod="get_object",
-            Params={"Bucket": bucket_name, "Key": file_key},
+            Params=params,
             ExpiresIn=expiration,
         )
     except Exception as e:

@@ -34,6 +34,7 @@ class JobResponseItem(BaseModel):
 
 class JobResponse(BaseModel):
     jobs: list[JobResponseItem]
+    total_count: int
 
 
 @router.get("/status")
@@ -65,11 +66,12 @@ async def list_jobs(
     cognito_id = current_user["sub"]
     user: User = User.get_by_cognito_id(session, cognito_id)
     jobs: list[Job] = Job.get_jobs_by_user_id(session, user.id, limit=limit, offset=offset)
+    total_count = Job.get_total_count_by_user_id(session, user.id)
     response_items = [
         JobResponseItem(id=str(job.id), status=job.status.value, created_at=job.created_at, updated_at=job.updated_at)
         for job in jobs
     ]
-    return JobResponse(jobs=response_items)
+    return JobResponse(jobs=response_items, total_count=total_count)
 
 
 @router.get("/get/{job_id}", response_model=JobResponseItem)
