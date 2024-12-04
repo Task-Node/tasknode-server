@@ -81,4 +81,6 @@ async def get_job(
     cognito_id = current_user["sub"]
     user: User = User.get_by_cognito_id(session, cognito_id)
     job: Job = Job.get_by_id(session, job_id, user.id)
-    return JobResponseItem(id=str(job.id), status=job.status.value, created_at=job.created_at, updated_at=job.updated_at)
+    return JobResponseItem(
+        id=str(job.id), status=job.status.value, created_at=job.created_at, updated_at=job.updated_at
+    )

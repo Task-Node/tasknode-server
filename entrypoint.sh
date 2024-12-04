@@ -88,7 +88,9 @@ if [ -n "$FILES" ]; then
     echo "$FILES"
     echo 'Found new files to zip'
     mkdir -p tasknode_outputs
-    find tasknode_deploy -type f -newer /app/timestamp -not -name 'tasknode_*.log' -exec stat --format='%n,%s,%Y' {} \; > ./manifest.txt
+    cd tasknode_deploy
+    find . -type f -newer /app/timestamp -not -name 'tasknode_*.log' -exec stat --format='%n,%s,%Y' {} \; > ../manifest.txt
+    cd ..
     echo 'Manifest contents:'
     cat ./manifest.txt
     echo 'Uploading manifest file...'

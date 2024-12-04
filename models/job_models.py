@@ -1,14 +1,12 @@
+from datetime import datetime
 from sqlalchemy import Column, DateTime, String, Enum as SQLAlchemyEnum, BigInteger, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
-# from sqlalchemy.orm import relationship
+from constants import JobStatus
 from utils.utils import get_utc_now
 from database import Base
-from datetime import datetime
 
-from config import settings
-from constants import JobStatus
 
 
 class Job(Base):
@@ -83,3 +81,45 @@ class Job(Base):
             .offset(offset)
             .all()
         )
+
+
+class JobFiles(Base):
+    __tablename__ = "job_files"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
+    s3_bucket = Column(String, nullable=False)
+    s3_key = Column(String, nullable=False)
+    file_name = Column(String, nullable=False)
+    file_size = Column(BigInteger, nullable=False)  # in bytes
+    file_timestamp = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=get_utc_now)
+
+    def __init__(
+        self, job_id: uuid.UUID, s3_bucket: str, s3_key: str, file_name: str, file_size: int, file_timestamp: datetime
+    ):
+        self.job_id = job_id
+        self.s3_bucket = s3_bucket
+        self.s3_key = s3_key
+        self.file_name = file_name
+        self.file_size = file_size
+        self.file_timestamp = file_timestamp
+        self.created_at = get_utc_now()
+
+    def __repr__(self):
+        return f"<JobFiles {self.id} {self.job_id} {self.s3_bucket} {self.s3_key} {self.file_name} {self.file_size} {self.file_timestamp}>"
+
+    @classmethod
+    def create(
+        cls,
+        session,
+        job_id: uuid.UUID,
+        s3_bucket: str,
+        s3_key: str,
+        file_name: str,
+        file_size: int,
+        file_timestamp: datetime,
+    ):
+        item = cls(job_id, s3_bucket, s3_key, file_name, file_size, file_timestamp)
+        session.add(item)
+        session.flush()
+        return item

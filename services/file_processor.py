@@ -6,13 +6,15 @@ except ImportError:
     pass
 
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import boto3
 from sqlalchemy import text
 
 from config import settings
 from constants import MAX_IN_PROGRESS, JobStatus
 from database import session_scope, init_engine
-from models.job_models import Job
+from models.job_models import Job, JobFiles
 from models.user_models import User
 from utils.email import send_email, FAILURE_TEMPLATE, SUCCESS_TEMPLATE
 from utils.logger import logger
@@ -92,6 +94,30 @@ def process_task_response(db_session, response: dict, job: Job):
     Job.update_status(db_session, job.id, JobStatus.PROCESSING, task_arn)
 
 
+def process_manifest_file(db_session, job: Job):
+    # Read the manifest file directly from S3
+    s3_client = boto3.client("s3")
+    s3_bucket = settings.PROCESSED_FILES_BUCKET
+    s3_key = f"{job.id}/manifest.txt"
+
+    print(f"Reading manifest file from S3: {s3_bucket}/{s3_key}")
+
+    try:
+        response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
+        manifest_content = response["Body"].read().decode("utf-8")
+
+        # for each line in the manifest file, create a job file record
+        for line in manifest_content.split("\n"):
+            if not line:
+                continue
+            file_name, file_size, file_unix_timestamp = line.split(",")
+            file_timestamp = datetime.fromtimestamp(int(file_unix_timestamp), tz=ZoneInfo("UTC"))
+            JobFiles.create(db_session, job.id, s3_bucket, s3_key, file_name, file_size, file_timestamp)
+    except Exception as e:
+        logger.error(f"Error reading manifest file from S3: {str(e)}")
+        raise
+
+
 def update_jobs_in_progress(db_session):
     """Update the status of jobs that are in progress."""
     jobs = Job.get_all_in_progress(db_session)
@@ -122,6 +148,10 @@ def update_jobs_in_progress(db_session):
             if task_status == "STOPPED":
                 user = User.get_by_id(db_session, job.user_id)
                 if exit_code == 0:
+                    # get the manifest file from s3 ('{job.id}/manifest.txt')
+                    s3_bucket = settings.PROCESSED_FILES_BUCKET
+                    s3_key = f"{job.id}/manifest.txt"
+                    process_manifest_file(db_session, job)
                     send_email([user.email], "Tasknode task completed", SUCCESS_TEMPLATE.format(task_id=job.id))
                     Job.update_status(db_session, job.id, JobStatus.COMPLETED)
                 else:
