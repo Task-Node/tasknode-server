@@ -15,7 +15,8 @@ echo 'Download complete. File details:' && \
 ls -l input.zip && \
 file input.zip || { echo 'File details failed' >&2; exit 1; } && \
 unzip -t input.zip || { echo 'Unzip test failed' >&2; exit 1; } && \
-unzip input.zip || { echo 'Unzip failed' >&2; exit 1; } && \
+mkdir -p tasknode_deploy && \
+unzip input.zip -d tasknode_deploy || { echo 'Unzip failed' >&2; exit 1; } && \
 cd tasknode_deploy
 
 # Check if run_info.json exists
