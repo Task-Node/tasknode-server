@@ -35,6 +35,9 @@ class Job(Base):
     def __repr__(self):
         return f"<Job {self.id} {self.s3_bucket} {self.s3_key} {self.status}>"
 
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
     @classmethod
     def create(cls, session, user_id: int, s3_bucket: str, s3_key: str, status: str, fargate_task_arn: str = None):
         item = cls(user_id, s3_bucket, s3_key, status, fargate_task_arn)
@@ -43,8 +46,12 @@ class Job(Base):
         return item
 
     @classmethod
-    def get_by_id(cls, session, id: uuid.UUID):
-        return session.query(cls).filter(cls.id == id).first()
+    def get_by_id(cls, session, id: uuid.UUID, user_id: int):
+        return session.query(cls).filter(cls.id == id, cls.user_id == user_id).first()
+
+    @classmethod
+    def get_by_user_id(cls, session, user_id: int):
+        return session.query(cls).filter(cls.user_id == user_id).all()
 
     @classmethod
     def get_all_in_progress(cls, session):
@@ -67,5 +74,12 @@ class Job(Base):
         session.flush()
 
     @classmethod
-    def get_jobs_by_user_id(cls, session, user_id: int):
-        return session.query(cls).filter(cls.user_id == user_id).all()
+    def get_jobs_by_user_id(cls, session, user_id: int, limit: int = 10, offset: int = 0):
+        return (
+            session.query(cls)
+            .filter(cls.user_id == user_id)
+            .order_by(cls.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
