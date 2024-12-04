@@ -2,9 +2,7 @@
 
 echo 'Job started'
 
-# Install dependencies
-apt-get update && \
-apt-get install -y unzip curl zip jq && \
+# Create working directory and change to it (removed apt-get installations)
 mkdir -p /app && cd /app
 
 # Create a timestamp file that will be used to check if there are new files to zip
@@ -12,12 +10,12 @@ touch timestamp
 
 # Download the input zip file and unzip it
 echo "Downloading from: $DOWNLOAD_URL" && \
-curl -v "$DOWNLOAD_URL" -o ./input.zip && \
+curl -v "$DOWNLOAD_URL" -o ./input.zip || { echo 'Download failed' >&2; exit 1; } && \
 echo 'Download complete. File details:' && \
 ls -l input.zip && \
-file input.zip && \
-unzip -t input.zip || true && \
-unzip input.zip && \
+file input.zip || { echo 'File details failed' >&2; exit 1; } && \
+unzip -t input.zip || { echo 'Unzip test failed' >&2; exit 1; } && \
+unzip input.zip || { echo 'Unzip failed' >&2; exit 1; } && \
 cd tasknode_deploy
 
 # Check if run_info.json exists
