@@ -18,7 +18,7 @@ from models.job_models import Job, JobFiles
 from models.user_models import User
 from utils.email import send_email, FAILURE_TEMPLATE, SUCCESS_TEMPLATE_WITH_FILES, SUCCESS_TEMPLATE_WITHOUT_FILES
 from utils.logger import logger
-from utils.s3 import get_signed_url, get_signed_upload_url
+from utils.s3 import get_signed_url, get_signed_upload_url, delete_file
 from utils.utils import format_file_size
 
 
@@ -167,13 +167,13 @@ def update_jobs_in_progress(db_session):
                     signed_url_output_log = get_signed_url(
                         settings.PROCESSED_FILES_BUCKET,
                         f"{job.id}/output.log",
-                        expiration=60 * 60 * 24,
+                        expiration=60 * 60 * 72,
                         filename="output.log",
                     )
                     signed_url_error_log = get_signed_url(
                         settings.PROCESSED_FILES_BUCKET,
                         f"{job.id}/error.log",
-                        expiration=60 * 60 * 24,
+                        expiration=60 * 60 * 72,
                         filename="error.log",
                     )
 
@@ -181,7 +181,7 @@ def update_jobs_in_progress(db_session):
                         signed_url_file_zip = get_signed_url(
                             settings.PROCESSED_FILES_BUCKET,
                             f"{job.id}/files.zip",
-                            expiration=60 * 60 * 24,
+                            expiration=60 * 60 * 72,
                             filename="generated_files.zip",
                         )
                         send_email(
@@ -206,6 +206,10 @@ def update_jobs_in_progress(db_session):
                             ),
                         )
                     Job.update_status(db_session, job.id, JobStatus.COMPLETED)
+
+                    # Clean up the input file from the file drop bucket
+                    logger.info(f"Cleaning up input file for job {job.id} from bucket {job.s3_bucket}")
+                    delete_file(job.s3_bucket, job.s3_key)
                 else:
                     send_email([user.email], "Tasknode task failed", FAILURE_TEMPLATE.format(task_id=job.id))
                     Job.update_status(db_session, job.id, JobStatus.FAILED)

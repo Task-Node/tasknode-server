@@ -253,3 +253,8 @@ functions:
     events:
       - schedule: rate(1 minute)
 
+  cleanupS3:
+    handler: services.cleanup_s3.cleanup_s3_handler
+    events:
+      - schedule: rate(1 hour)
+
