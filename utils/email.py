@@ -26,7 +26,7 @@ SUCCESS_TEMPLATE_WITH_FILES = """
     <li><a href="{signed_url_error_log}">Error log</a></li>
     <li><a href="{signed_url_file_zip}">Generated files (ZIP)</a></li>
 </ul>
-<p><strong>Note:</strong> These download links will expire in 24 hours.</p>
+<p><strong>Note:</strong> These download links will expire in 72 hours.</p>
 <p>Thank you for using Tasknode.</p>
 """
 
@@ -38,7 +38,7 @@ SUCCESS_TEMPLATE_WITHOUT_FILES = """
     <li><a href="{signed_url_output_log}">Output log</a></li>
     <li><a href="{signed_url_error_log}">Error log</a></li>
 </ul>
-<p><strong>Note:</strong> These download links will expire in 24 hours.</p>
+<p><strong>Note:</strong> These download links will expire in 72 hours.</p>
 <p>Thank you for using Tasknode.</p>
 """
 
