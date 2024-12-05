@@ -76,7 +76,13 @@ async def list_jobs(
     jobs: list[Job] = Job.get_jobs_by_user_id(session, user.id, limit=limit, offset=offset)
     total_count = Job.get_total_count_by_user_id(session, user.id)
     response_items = [
-        JobResponseItem(id=str(job.id), status=job.status.value, runtime=job.runtime, created_at=job.created_at, updated_at=job.updated_at)
+        JobResponseItem(
+            id=str(job.id),
+            status=job.status.value,
+            runtime=job.runtime,
+            created_at=job.created_at,
+            updated_at=job.updated_at,
+        )
         for job in jobs
     ]
     return JobResponse(jobs=response_items, total_count=total_count)
@@ -102,19 +108,19 @@ async def get_job(
             index = int(job_identifier)
         except ValueError:
             raise HTTPException(status_code=404, detail="Job not found")
-        
+
         if index <= 0:
             raise HTTPException(status_code=404, detail="Job not found")
-        
-        jobs: list[Job] = Job.get_jobs_by_user_id(session, user.id, limit=1, offset=index-1)
+
+        jobs: list[Job] = Job.get_jobs_by_user_id(session, user.id, limit=1, offset=index - 1)
         if not jobs:
             raise HTTPException(status_code=404, detail="Job not found")
-        
+
         job = jobs[0]
 
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     # Get associated files
     job_files = JobFiles.get_by_job_id(session, job.id)
     files = [
@@ -125,12 +131,12 @@ async def get_job(
         )
         for f in job_files
     ]
-    
+
     return JobResponseItem(
         id=str(job.id),
         status=job.status.value,
         runtime=job.runtime,
         created_at=job.created_at,
         updated_at=job.updated_at,
-        files=files
+        files=files,
     )

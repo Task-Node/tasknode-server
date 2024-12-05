@@ -33,14 +33,14 @@ class VerifyToken:
             token = token.replace("Bearer ", "").replace("bearer ", "")
             if token == settings.API_KEY:
                 return {"sub": "system"}
-            
+
             header = get_unverified_header(token)
             kid = header["kid"]
-            
+
             # Use PyJWKClient to fetch the key
             jwk_client = PyJWKClient(self.jwks_url)
             signing_key = jwk_client.get_signing_key_from_jwt(token)
-            
+
             claims = self.jwt.decode(
                 token,
                 key=signing_key.key,
