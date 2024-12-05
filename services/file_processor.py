@@ -10,6 +10,7 @@ import boto3
 from datetime import datetime
 from sqlalchemy import text
 from zoneinfo import ZoneInfo
+from math import ceil
 
 from config import settings
 from constants import MAX_IN_PROGRESS, JobStatus
@@ -169,6 +170,8 @@ def update_jobs_in_progress(db_session):
                 exit_code, runtime = get_task_details(task)
                 logger.info(f"Task status: {task_status}, exit code: {exit_code}, runtime: {runtime}")
 
+                runtime_minutes = ceil(runtime / 60)
+
                 user = User.get_by_id(db_session, job.user_id)
                 if exit_code == 0:
                     job_files = process_manifest_file(db_session, job)
@@ -210,6 +213,7 @@ def update_jobs_in_progress(db_session):
                                 signed_url_file_zip=signed_url_file_zip,
                                 signed_url_output_log=signed_url_output_log,
                                 signed_url_error_log=signed_url_error_log,
+                                runtime_minutes=runtime_minutes,
                             ),
                         )
                     else:
@@ -220,6 +224,7 @@ def update_jobs_in_progress(db_session):
                                 task_id=job.id,
                                 signed_url_output_log=signed_url_output_log,
                                 signed_url_error_log=signed_url_error_log,
+                                runtime_minutes=runtime_minutes,
                             ),
                         )
                     Job.update_status(db_session, job.id, JobStatus.COMPLETED, runtime=runtime)
