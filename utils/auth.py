@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jwt import PyJWT
+from jwt import PyJWT, get_unverified_header, PyJWKClient
 from jwt.exceptions import InvalidTokenError
 import requests
 
@@ -9,7 +9,7 @@ from config import settings
 
 class UnauthenticatedException(HTTPException):
     def __init__(self):
-        super().__init__(status_code=status.HTTP_401_UNAUTHORIZED, detail="Requires authentication123")
+        super().__init__(status_code=status.HTTP_401_UNAUTHORIZED, detail="Requires authentication")
 
 
 # 👇 new code
@@ -34,19 +34,19 @@ class VerifyToken:
             if token == settings.API_KEY:
                 return {"sub": "system"}
             
-            header = self.jwt.get_unverified_header(token)
+            header = get_unverified_header(token)
             kid = header["kid"]
-            jwks = self.get_jwks()
-            key = [k for k in jwks if k["kid"] == kid][0]
             
-            public_key = self.jwt.algorithms.RSAAlgorithm.from_jwk(key)
+            # Use PyJWKClient to fetch the key
+            jwk_client = PyJWKClient(self.jwks_url)
+            signing_key = jwk_client.get_signing_key_from_jwt(token)
             
             claims = self.jwt.decode(
                 token,
-                key=public_key,
+                key=signing_key.key,
                 algorithms=["RS256"],
-                audience=self.cognito_audience,
-                issuer=self.cognito_issuer
+                issuer=self.cognito_issuer,
+                options={"verify_aud": False},
             )
             return claims
         except InvalidTokenError as e:
