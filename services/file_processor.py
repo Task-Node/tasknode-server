@@ -91,8 +91,11 @@ def process_task_response(db_session, response: dict, job: Job):
             logger.error(f"Failure details: {failure}")
         return
 
+    logger.info(f"Task response: {response}")
+
     task_arn = response["tasks"][0]["taskArn"]
-    Job.update_status(db_session, job.id, JobStatus.PROCESSING, task_arn)
+    task_id = task_arn.split("/")[-1]
+    Job.update_status(db_session, job.id, JobStatus.PROCESSING, task_id)
 
 
 def process_manifest_file(db_session, job: Job):
@@ -151,7 +154,7 @@ def update_jobs_in_progress(db_session):
     logger.info(f"Updating {len(jobs)} jobs in progress")
     for job in jobs:
         logger.info(job)
-        arn = job.fargate_task_arn
+        arn = job.fargate_task_id
         ecs = boto3.client("ecs")
         response = ecs.describe_tasks(cluster=settings.ECS_CLUSTER, tasks=[arn])
         logger.info(response)
@@ -224,6 +227,7 @@ def update_jobs_in_progress(db_session):
                     # Clean up the input file from the file drop bucket
                     logger.info(f"Cleaning up input file for job {job.id} from bucket {job.s3_bucket}")
                     delete_file(job.s3_bucket, job.s3_key)
+                    Job.update_upload_removed(db_session, job.id, True)
                 else:
                     send_email([user.email], "Tasknode task failed", FAILURE_TEMPLATE.format(task_id=job.id))
                     Job.update_status(db_session, job.id, JobStatus.FAILED, runtime=runtime)

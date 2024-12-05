@@ -14,7 +14,7 @@ class Job(Base):
     user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     s3_bucket = Column(String, nullable=False)
     s3_key = Column(String, nullable=False)
-    fargate_task_arn = Column(String, nullable=True)
+    fargate_task_id = Column(String, nullable=True)
     status = Column(SQLAlchemyEnum(JobStatus), nullable=False, default=JobStatus.PENDING)
     upload_removed = Column(Boolean, nullable=False, default=False)
     response_removed = Column(Boolean, nullable=False, default=False)
@@ -22,13 +22,13 @@ class Job(Base):
     created_at = Column(DateTime, nullable=False, default=get_utc_now)
     updated_at = Column(DateTime, nullable=False, default=get_utc_now)
 
-    def __init__(self, user_id: int, s3_bucket: str, s3_key: str, status: str, fargate_task_arn: str = None):
+    def __init__(self, user_id: int, s3_bucket: str, s3_key: str, status: str, fargate_task_id: str = None):
         self.id = uuid.uuid4()
         self.user_id = user_id
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.status = status
-        self.fargate_task_arn = fargate_task_arn
+        self.fargate_task_id = fargate_task_id
         self.upload_removed = False
         self.response_removed = False
         self.runtime = None
@@ -42,8 +42,8 @@ class Job(Base):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
     @classmethod
-    def create(cls, session, user_id: int, s3_bucket: str, s3_key: str, status: str, fargate_task_arn: str = None):
-        item = cls(user_id, s3_bucket, s3_key, status, fargate_task_arn)
+    def create(cls, session, user_id: int, s3_bucket: str, s3_key: str, status: str, fargate_task_id: str = None):
+        item = cls(user_id, s3_bucket, s3_key, status, fargate_task_id)
         session.add(item)
         session.flush()
         return item
@@ -83,12 +83,10 @@ class Job(Base):
         return session.query(cls).filter(cls.status == JobStatus.PENDING).order_by(cls.created_at.asc()).first()
 
     @classmethod
-    def update_status(
-        cls, session, id: uuid.UUID, status: JobStatus, fargate_task_arn: str = None, runtime: int = None
-    ):
+    def update_status(cls, session, id: uuid.UUID, status: JobStatus, fargate_task_id: str = None, runtime: int = None):
         update = {"status": status, "updated_at": get_utc_now()}
-        if fargate_task_arn:
-            update["fargate_task_arn"] = fargate_task_arn
+        if fargate_task_id:
+            update["fargate_task_id"] = fargate_task_id
         if runtime:
             update["runtime"] = runtime
         session.query(cls).filter(cls.id == id).update(update)
