@@ -124,6 +124,27 @@ def process_manifest_file(db_session, job: Job):
     return job_files
 
 
+def get_task_details(task: dict) -> tuple[int | None, int | None]:
+    """
+    Extract exit code and runtime from an ECS task.
+    Returns tuple of (exit_code, runtime) where both values may be None.
+    """
+    exit_code = None
+    runtime = None
+
+    if "containers" in task:
+        # Get the exit code from the first container
+        container = task["containers"][0]
+        exit_code = container.get("exitCode")
+
+    # Calculate runtime if start and stop times are available
+    if "startedAt" in task and "stoppedAt" in task:
+        runtime = int((task["stoppedAt"] - task["startedAt"]).total_seconds())
+        logger.info(f"Task runtime: {runtime} seconds")
+
+    return exit_code, runtime
+
+
 def update_jobs_in_progress(db_session):
     """Update the status of jobs that are in progress."""
     jobs = Job.get_all_in_progress(db_session)
@@ -141,17 +162,10 @@ def update_jobs_in_progress(db_session):
             task = response["tasks"][0]
             task_status = task["lastStatus"]
 
-            # Get exit code if container has stopped
-            exit_code = None
-            if task_status == "STOPPED" and "containers" in task:
-                # Get the exit code from the first container
-                container = task["containers"][0]
-                exit_code = container.get("exitCode")
-
-            logger.info(f"Task status: {task_status}, exit code: {exit_code}")
-
-            # Update job status based on task status and exit code
             if task_status == "STOPPED":
+                exit_code, runtime = get_task_details(task)
+                logger.info(f"Task status: {task_status}, exit code: {exit_code}, runtime: {runtime}")
+
                 user = User.get_by_id(db_session, job.user_id)
                 if exit_code == 0:
                     job_files = process_manifest_file(db_session, job)
@@ -205,14 +219,14 @@ def update_jobs_in_progress(db_session):
                                 signed_url_error_log=signed_url_error_log,
                             ),
                         )
-                    Job.update_status(db_session, job.id, JobStatus.COMPLETED)
+                    Job.update_status(db_session, job.id, JobStatus.COMPLETED, runtime=runtime)
 
                     # Clean up the input file from the file drop bucket
                     logger.info(f"Cleaning up input file for job {job.id} from bucket {job.s3_bucket}")
                     delete_file(job.s3_bucket, job.s3_key)
                 else:
                     send_email([user.email], "Tasknode task failed", FAILURE_TEMPLATE.format(task_id=job.id))
-                    Job.update_status(db_session, job.id, JobStatus.FAILED)
+                    Job.update_status(db_session, job.id, JobStatus.FAILED, runtime=runtime)
 
 
 def handle_files(event, context):

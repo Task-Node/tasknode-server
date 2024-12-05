@@ -1,4 +1,3 @@
-
 from database import init_engine, session_scope
 from datetime import datetime, timedelta
 
@@ -12,7 +11,6 @@ def cleanup_s3_handler(event, context):
     init_engine()
 
     with session_scope() as db_session:
-
         # delete files older than 72 hours in the processed files bucket
         files = get_all_files_in_bucket(settings.PROCESSED_FILES_BUCKET)
         for file in files:

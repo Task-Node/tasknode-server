@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, DateTime, String, Enum as SQLAlchemyEnum, BigInteger, ForeignKey
+from sqlalchemy import Column, DateTime, String, Enum as SQLAlchemyEnum, BigInteger, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
@@ -16,6 +16,9 @@ class Job(Base):
     s3_key = Column(String, nullable=False)
     fargate_task_arn = Column(String, nullable=True)
     status = Column(SQLAlchemyEnum(JobStatus), nullable=False, default=JobStatus.PENDING)
+    upload_removed = Column(Boolean, nullable=False, default=False)
+    response_removed = Column(Boolean, nullable=False, default=False)
+    runtime = Column(BigInteger, nullable=True)  # in seconds
     created_at = Column(DateTime, nullable=False, default=get_utc_now)
     updated_at = Column(DateTime, nullable=False, default=get_utc_now)
 
@@ -26,6 +29,9 @@ class Job(Base):
         self.s3_key = s3_key
         self.status = status
         self.fargate_task_arn = fargate_task_arn
+        self.upload_removed = False
+        self.response_removed = False
+        self.runtime = None
         self.created_at = get_utc_now()
         self.updated_at = get_utc_now()
 
@@ -63,10 +69,14 @@ class Job(Base):
         return session.query(cls).filter(cls.status == JobStatus.PENDING).order_by(cls.created_at.asc()).first()
 
     @classmethod
-    def update_status(cls, session, id: uuid.UUID, status: JobStatus, fargate_task_arn: str = None):
+    def update_status(
+        cls, session, id: uuid.UUID, status: JobStatus, fargate_task_arn: str = None, runtime: int = None
+    ):
         update = {"status": status, "updated_at": get_utc_now()}
         if fargate_task_arn:
             update["fargate_task_arn"] = fargate_task_arn
+        if runtime:
+            update["runtime"] = runtime
         session.query(cls).filter(cls.id == id).update(update)
         session.flush()
 
