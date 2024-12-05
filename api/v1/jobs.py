@@ -82,21 +82,41 @@ async def list_jobs(
     return JobResponse(jobs=response_items, total_count=total_count)
 
 
-@router.get("/get/{job_id}", response_model=JobResponseItem)
+@router.get("/get/{job_identifier}", response_model=JobResponseItem)
 async def get_job(
-    job_id: uuid.UUID,
+    job_identifier: str,
     session: Session = Depends(get_db),
     current_user: dict = Security(auth.get_current_user),
 ) -> JobResponseItem:
     cognito_id = current_user["sub"]
     user: User = User.get_by_cognito_id(session, cognito_id)
-    job: Job = Job.get_by_id(session, job_id, user.id)
+
+    # Check if the identifier is a valid UUID
+    try:
+        job_id = uuid.UUID(job_identifier)
+        job: Job = Job.get_by_id(session, job_id, user.id)
+    except ValueError:
+        print(f"Trying to get job by index: {job_identifier}")
+        # If not a UUID, treat it as an index
+        try:
+            index = int(job_identifier)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        if index <= 0:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        jobs: list[Job] = Job.get_jobs_by_user_id(session, user.id, limit=1, offset=index-1)
+        if not jobs:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        job = jobs[0]
 
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
     # Get associated files
-    job_files = JobFiles.get_by_job_id(session, job_id)
+    job_files = JobFiles.get_by_job_id(session, job.id)
     files = [
         JobFileItem(
             file_name=f.file_name,

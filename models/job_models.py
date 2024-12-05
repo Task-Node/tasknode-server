@@ -97,7 +97,7 @@ class Job(Base):
         return (
             session.query(cls)
             .filter(cls.user_id == user_id)
-            .order_by(cls.created_at.desc())
+            .order_by(cls.created_at.desc())  # most recent first (other functionality depends on this!!!)
             .limit(limit)
             .offset(offset)
             .all()
