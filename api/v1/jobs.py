@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import APIRouter, Security, Depends
+from fastapi import APIRouter, HTTPException, Security, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -91,6 +91,9 @@ async def get_job(
     cognito_id = current_user["sub"]
     user: User = User.get_by_cognito_id(session, cognito_id)
     job: Job = Job.get_by_id(session, job_id, user.id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
     
     # Get associated files
     job_files = JobFiles.get_by_job_id(session, job_id)
