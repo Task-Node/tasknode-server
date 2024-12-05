@@ -29,6 +29,8 @@ def create_task_definition(
     presigned_manifest_upload_url,
     presigned_output_log_upload_url,
     presigned_error_log_upload_url,
+    presigned_output_tail_upload_url,
+    presigned_error_tail_upload_url,
 ):
     return {
         "family": "tasknode-processor",
@@ -48,6 +50,8 @@ def create_task_definition(
                     {"name": "MANIFEST_UPLOAD_URL", "value": presigned_manifest_upload_url},
                     {"name": "OUTPUT_LOG_UPLOAD_URL", "value": presigned_output_log_upload_url},
                     {"name": "ERROR_LOG_UPLOAD_URL", "value": presigned_error_log_upload_url},
+                    {"name": "OUTPUT_TAIL_UPLOAD_URL", "value": presigned_output_tail_upload_url},
+                    {"name": "ERROR_TAIL_UPLOAD_URL", "value": presigned_error_tail_upload_url},
                     {"name": "AWS_DEFAULT_REGION", "value": settings.REGION},
                 ],
                 "logConfiguration": {
@@ -300,11 +304,29 @@ def handle_files(event, context):
                     cognito_id=cognito_id,
                 )
 
+                presigned_output_tail_upload_url = get_signed_upload_url(
+                    settings.PROCESSED_FILES_BUCKET,
+                    f"{job.id}/output.tail",
+                    content_type="text/plain",
+                    expiration=60 * 60 * 48,
+                    cognito_id=cognito_id,
+                )
+
+                presigned_error_tail_upload_url = get_signed_upload_url(
+                    settings.PROCESSED_FILES_BUCKET,
+                    f"{job.id}/error.tail",
+                    content_type="text/plain",
+                    expiration=60 * 60 * 48,
+                    cognito_id=cognito_id,
+                )
+
                 assert presigned_download_url, "Presigned download URL is required"
                 assert presigned_zip_upload_url, "Presigned zip upload URL is required"
                 assert presigned_manifest_upload_url, "Presigned manifest upload URL is required"
                 assert presigned_output_log_upload_url, "Presigned output log upload URL is required"
                 assert presigned_error_log_upload_url, "Presigned error log upload URL is required"
+                assert presigned_output_tail_upload_url, "Presigned output tail upload URL is required"
+                assert presigned_error_tail_upload_url, "Presigned error tail upload URL is required"
 
                 task_definition = create_task_definition(
                     presigned_download_url,
@@ -312,6 +334,8 @@ def handle_files(event, context):
                     presigned_manifest_upload_url,
                     presigned_output_log_upload_url,
                     presigned_error_log_upload_url,
+                    presigned_output_tail_upload_url,
+                    presigned_error_tail_upload_url,
                 )
 
                 try:

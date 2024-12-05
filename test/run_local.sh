@@ -14,6 +14,8 @@ ZIP_UPLOAD_URL=$(echo $URLS_JSON | jq -r '.zip')
 MANIFEST_UPLOAD_URL=$(echo $URLS_JSON | jq -r '.manifest')
 OUTPUT_LOG_UPLOAD_URL=$(echo $URLS_JSON | jq -r '.output_log')
 ERROR_LOG_UPLOAD_URL=$(echo $URLS_JSON | jq -r '.error_log')
+OUTPUT_TAIL_UPLOAD_URL=$(echo $URLS_JSON | jq -r '.output_tail')
+ERROR_TAIL_UPLOAD_URL=$(echo $URLS_JSON | jq -r '.error_tail')
 
 # echo the URLs
 echo "DOWNLOAD_URL: $DOWNLOAD_URL"
@@ -21,6 +23,8 @@ echo "ZIP_UPLOAD_URL: $ZIP_UPLOAD_URL"
 echo "MANIFEST_UPLOAD_URL: $MANIFEST_UPLOAD_URL"
 echo "OUTPUT_LOG_UPLOAD_URL: $OUTPUT_LOG_UPLOAD_URL"
 echo "ERROR_LOG_UPLOAD_URL: $ERROR_LOG_UPLOAD_URL"
+echo "OUTPUT_TAIL_UPLOAD_URL: $OUTPUT_TAIL_UPLOAD_URL"
+echo "ERROR_TAIL_UPLOAD_URL: $ERROR_TAIL_UPLOAD_URL"
 
 # build the docker image
 docker build -t tasknode-processor:latest ..
@@ -32,4 +36,6 @@ docker run \
   -e MANIFEST_UPLOAD_URL="$MANIFEST_UPLOAD_URL" \
   -e OUTPUT_LOG_UPLOAD_URL="$OUTPUT_LOG_UPLOAD_URL" \
   -e ERROR_LOG_UPLOAD_URL="$ERROR_LOG_UPLOAD_URL" \
+  -e OUTPUT_TAIL_UPLOAD_URL="$OUTPUT_TAIL_UPLOAD_URL" \
+  -e ERROR_TAIL_UPLOAD_URL="$ERROR_TAIL_UPLOAD_URL" \
   tasknode-processor:latest 

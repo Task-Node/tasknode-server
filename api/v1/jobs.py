@@ -38,6 +38,8 @@ class JobResponseItem(BaseModel):
     created_at: datetime
     updated_at: datetime
     files: list[JobFileItem] = []
+    output_log_tail: list[str] = []
+    error_log_tail: list[str] = []
 
 
 class JobResponse(BaseModel):
@@ -132,6 +134,9 @@ async def get_job(
         for f in job_files
     ]
 
+    output_log_tail = Job.get_log_tail(job.id, "output")
+    error_log_tail = Job.get_log_tail(job.id, "error")
+
     return JobResponseItem(
         id=str(job.id),
         status=job.status.value,
@@ -139,4 +144,6 @@ async def get_job(
         created_at=job.created_at,
         updated_at=job.updated_at,
         files=files,
+        output_log_tail=output_log_tail,
+        error_log_tail=error_log_tail,
     )

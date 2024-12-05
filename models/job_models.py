@@ -1,11 +1,14 @@
+import boto3
 from datetime import datetime
 from sqlalchemy import Column, DateTime, String, Enum as SQLAlchemyEnum, BigInteger, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
+
 from constants import JobStatus
 from utils.utils import get_utc_now
 from database import Base
+from config import settings
 
 
 class Job(Base):
@@ -106,6 +109,34 @@ class Job(Base):
     @classmethod
     def get_total_count_by_user_id(cls, session, user_id: int) -> int:
         return session.query(cls).filter(cls.user_id == user_id).count()
+    
+    @staticmethod
+    def get_log_tail(job_id: uuid.UUID, log_type: str = "output"):
+        """
+        Retrieve the tail log file from S3 for a given job ID.
+        Returns the contents as a list of strings, or an empty list if file doesn't exist.
+        
+        :param job_id: UUID of the job
+        :param log_type: Type of log file to retrieve ('output' or 'error')
+        """
+        assert log_type in ["output", "error"]
+        try:
+            s3_client = boto3.client('s3')
+            bucket = settings.PROCESSED_FILES_BUCKET
+            key = f"{str(job_id)}/{log_type}.tail"
+            
+            response = s3_client.get_object(Bucket=bucket, Key=key)
+            content = response['Body'].read().decode('utf-8')
+            
+            # Split content into lines and remove empty lines
+            return [line for line in content.splitlines() if line]
+            
+        except s3_client.exceptions.NoSuchKey:
+            # File doesn't exist in S3
+            return []
+        except Exception as e:
+            print(f"Error fetching {log_type} tail log for job {job_id}: {str(e)}")
+            return []
 
 
 class JobFiles(Base):

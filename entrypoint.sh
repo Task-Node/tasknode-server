@@ -51,8 +51,16 @@ SCRIPT_PID=$!
 # Upload logs every 30 seconds while script is running
 while kill -0 $SCRIPT_PID 2>/dev/null; do
     echo "Uploading interim log files..."
+    # Create and upload interim tail files
+    tail -n 10 tasknode_output.log > tasknode_output.tail
+    tail -n 10 tasknode_error.log > tasknode_error.tail
+    
+    # Upload all interim files
     curl -H 'Content-Type: text/plain' -T tasknode_output.log "$OUTPUT_LOG_UPLOAD_URL" > /dev/null 2>&1 || echo 'Interim output log upload failed'
     curl -H 'Content-Type: text/plain' -T tasknode_error.log "$ERROR_LOG_UPLOAD_URL" > /dev/null 2>&1 || echo 'Interim error log upload failed'
+    curl -H 'Content-Type: text/plain' -T tasknode_output.tail "$OUTPUT_TAIL_UPLOAD_URL" > /dev/null 2>&1 || echo 'Interim output tail upload failed'
+    curl -H 'Content-Type: text/plain' -T tasknode_error.tail "$ERROR_TAIL_UPLOAD_URL" > /dev/null 2>&1 || echo 'Interim error tail upload failed'
+    
     sleep 30
 done
 
@@ -64,6 +72,13 @@ SCRIPT_EXIT_CODE=$?
 echo "Uploading final log files..."
 curl -v -H 'Content-Type: text/plain' -T tasknode_output.log "$OUTPUT_LOG_UPLOAD_URL" > /dev/null 2>&1 || echo 'Final output log upload failed'
 curl -v -H 'Content-Type: text/plain' -T tasknode_error.log "$ERROR_LOG_UPLOAD_URL" > /dev/null 2>&1 || echo 'Final error log upload failed'
+
+# Create and upload tail files (last 20 lines)
+echo "Creating and uploading tail files..."
+tail -n 10 tasknode_output.log > tasknode_output.tail
+tail -n 10 tasknode_error.log > tasknode_error.tail
+curl -v -H 'Content-Type: text/plain' -T tasknode_output.tail "$OUTPUT_TAIL_UPLOAD_URL" > /dev/null 2>&1 || echo 'Output tail upload failed'
+curl -v -H 'Content-Type: text/plain' -T tasknode_error.tail "$ERROR_TAIL_UPLOAD_URL" > /dev/null 2>&1 || echo 'Error tail upload failed'
 
 # Exit with the script's exit code
 if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
