@@ -49,6 +49,20 @@ class Job(Base):
         return item
 
     @classmethod
+    def query_by_s3_key(cls, session, s3_bucket: str, s3_key: str):
+        return session.query(cls).filter(cls.s3_bucket == s3_bucket, cls.s3_key == s3_key).first()
+
+    @classmethod
+    def update_upload_removed(cls, session, id: uuid.UUID, upload_removed: bool):
+        session.query(cls).filter(cls.id == id).update({"upload_removed": upload_removed})
+        session.flush()
+
+    @classmethod
+    def update_response_removed(cls, session, id: uuid.UUID, response_removed: bool):
+        session.query(cls).filter(cls.id == id).update({"response_removed": response_removed})
+        session.flush()
+
+    @classmethod
     def get_by_id(cls, session, id: uuid.UUID, user_id: int):
         return session.query(cls).filter(cls.id == id, cls.user_id == user_id).first()
 
