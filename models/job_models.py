@@ -148,3 +148,7 @@ class JobFiles(Base):
         session.add(item)
         session.flush()
         return item
+
+    @classmethod
+    def get_by_job_id(cls, session, job_id: uuid.UUID):
+        return session.query(cls).filter(cls.job_id == job_id).all()

@@ -7,7 +7,7 @@ import uuid
 
 from config import settings
 from database import get_db
-from models.job_models import Job
+from models.job_models import Job, JobFiles
 from models.user_models import User
 from utils.auth import VerifyToken
 from utils.s3 import get_signed_upload_url
@@ -25,11 +25,19 @@ class SignedUrlResponse(BaseModel):
     s3Key: str
 
 
+class JobFileItem(BaseModel):
+    file_name: str
+    file_size: int
+    file_timestamp: datetime
+
+
 class JobResponseItem(BaseModel):
     id: uuid.UUID
     status: str
+    runtime: Optional[int]
     created_at: datetime
     updated_at: datetime
+    files: list[JobFileItem] = []
 
 
 class JobResponse(BaseModel):
@@ -68,7 +76,7 @@ async def list_jobs(
     jobs: list[Job] = Job.get_jobs_by_user_id(session, user.id, limit=limit, offset=offset)
     total_count = Job.get_total_count_by_user_id(session, user.id)
     response_items = [
-        JobResponseItem(id=str(job.id), status=job.status.value, created_at=job.created_at, updated_at=job.updated_at)
+        JobResponseItem(id=str(job.id), status=job.status.value, runtime=job.runtime, created_at=job.created_at, updated_at=job.updated_at)
         for job in jobs
     ]
     return JobResponse(jobs=response_items, total_count=total_count)
@@ -83,6 +91,23 @@ async def get_job(
     cognito_id = current_user["sub"]
     user: User = User.get_by_cognito_id(session, cognito_id)
     job: Job = Job.get_by_id(session, job_id, user.id)
+    
+    # Get associated files
+    job_files = JobFiles.get_by_job_id(session, job_id)
+    files = [
+        JobFileItem(
+            file_name=f.file_name,
+            file_size=f.file_size,
+            file_timestamp=f.file_timestamp,
+        )
+        for f in job_files
+    ]
+    
     return JobResponseItem(
-        id=str(job.id), status=job.status.value, created_at=job.created_at, updated_at=job.updated_at
+        id=str(job.id),
+        status=job.status.value,
+        runtime=job.runtime,
+        created_at=job.created_at,
+        updated_at=job.updated_at,
+        files=files
     )
