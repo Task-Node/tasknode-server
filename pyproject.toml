@@ -20,11 +20,11 @@ pytest-env = "^0.8.1"
 pytest-cov = "^4.1.0"
 boto3 = "^1.34.48"
 requests = "^2.31.0"
-python-jose = "^3.3.0"
 email-validator = "^2.2.0"
 psycopg2-binary = "^2.9.10"
 resend = "^2.4.0"
 python-dotenv = "^1.0.1"
+pyjwt = "^2.10.1"
 
 [tool.pyright]
 pythonVersion = "3.10"
