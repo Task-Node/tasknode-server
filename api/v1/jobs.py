@@ -11,7 +11,7 @@ from database import get_db
 from models.job_models import Job, JobFiles
 from models.user_models import User
 from utils.auth import VerifyToken
-from utils.s3 import get_signed_upload_url
+from utils.s3 import get_signed_upload_url, get_signed_url
 
 
 auth = VerifyToken()
@@ -22,9 +22,13 @@ router = APIRouter(prefix="/api/v1/jobs", tags=["Jobs API v1"])
 
 
 class SignedUrlResponse(BaseModel):
+    filename: str
+    description: str
     signedUrl: str
     s3Key: str
 
+class FileLinkResponse(BaseModel):
+    files: list[SignedUrlResponse]
 
 class JobFileItem(BaseModel):
     file_name: str
@@ -125,18 +129,19 @@ async def get_job(
         raise HTTPException(status_code=404, detail="Job not found")
 
     # Get associated files (only GENERATED type)
-    job_files = JobFiles.get_by_job_id(session, job.id, file_type=FileType.GENERATED)
+    job_files = JobFiles.get_by_job_id(session, job.id)
     files = [
         JobFileItem(
             file_name=f.file_name,
             file_size=f.file_size,
             file_timestamp=f.file_timestamp,
         )
-        for f in job_files
+        for f in job_files if f.file_type == FileType.GENERATED
     ]
 
     output_log_tail = Job.get_log_tail(job.id, "output")
     error_log_tail = Job.get_log_tail(job.id, "error")
+
 
     return JobResponseItem(
         id=str(job.id),
@@ -148,3 +153,72 @@ async def get_job(
         output_log_tail=output_log_tail,
         error_log_tail=error_log_tail,
     )
+
+
+
+@router.get("/{job_id}/download_urls", response_model=FileLinkResponse)
+async def get_job_download_urls(
+    job_id: uuid.UUID,
+    session: Session = Depends(get_db),
+    current_user: dict = Security(auth.get_current_user)
+) -> FileLinkResponse:
+    """Get signed URLs to download the job's files (generated files, output log, and error log)."""
+
+    user: User = User.get_by_cognito_id(session, current_user["sub"])
+    
+    # Get the job and verify it exists
+    job = Job.get_by_id(session, job_id, user.id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Get all job files
+    job_files = JobFiles.get_by_job_id(session, job_id)
+    
+    # Find specific file types
+    generated_files = next((f for f in job_files if f.file_type == FileType.ZIPPED_GENERATED), None)
+    output_log = next((f for f in job_files if f.file_type == FileType.OUTPUT_LOG), None)
+    error_log = next((f for f in job_files if f.file_type == FileType.ERROR_LOG), None)
+
+    # Generate signed URLs with 72 hour expiry
+    files = []
+    
+    if generated_files and generated_files.file_size > 0:
+        files.append(SignedUrlResponse(
+            filename="tasknode_generated_files.zip",
+            description="The generated files for this job.",
+            signedUrl=get_signed_url(
+                settings.PROCESSED_FILES_BUCKET,
+                generated_files.s3_key,
+                expiration=60 * 60 * 2,
+                filename="tasknode_generated_files.zip"
+            ),
+            s3Key=generated_files.s3_key
+        ))
+    
+    if output_log and output_log.file_size > 0:
+        files.append(SignedUrlResponse(
+            filename="output.log",
+            description="The output logs for this job.",
+            signedUrl=get_signed_url(
+                settings.PROCESSED_FILES_BUCKET,
+                output_log.s3_key,
+                expiration=60 * 60 * 2,
+                filename="output.log"
+            ),
+            s3Key=output_log.s3_key
+        ))
+    
+    if error_log and error_log.file_size > 0:
+        files.append(SignedUrlResponse(
+            filename="error.log",
+            description="The error logs for this job.",
+            signedUrl=get_signed_url(
+                settings.PROCESSED_FILES_BUCKET,
+                error_log.s3_key,
+                expiration=60 * 60 * 2,
+                filename="error.log"
+            ),
+            s3Key=error_log.s3_key
+        ))
+    
+    return FileLinkResponse(files=files)
