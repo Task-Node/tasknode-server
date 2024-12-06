@@ -212,7 +212,8 @@ def update_jobs_in_progress(db_session):
             task = response["tasks"][0]
             task_status = task["lastStatus"]
 
-            if task_status == "STOPPED":
+            # Only process if the task is STOPPED and we haven't processed it before
+            if task_status == "STOPPED" and job.status == JobStatus.PROCESSING:
                 exit_code, runtime = get_task_details(task)
                 script_succeeded = exit_code == 0
                 logger.info(f"Task status: {task_status}, exit code: {exit_code}, runtime: {runtime}")
