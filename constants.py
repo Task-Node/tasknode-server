@@ -15,4 +15,4 @@ class FileType(Enum):
     ZIPPED_GENERATED = "zipped_generated"
 
 
-MAX_IN_PROGRESS = 2
+MAX_IN_PROGRESS = 4
