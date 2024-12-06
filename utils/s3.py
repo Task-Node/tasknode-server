@@ -174,3 +174,10 @@ def get_all_files_in_bucket(bucket_name: str) -> list:
         return []
 
     return files
+
+
+def file_exists(bucket_name: str, file_key: str) -> bool:
+    """
+    Checks if a file exists in an S3 bucket
+    """
+    return get_file_metadata(bucket_name, file_key) is not None

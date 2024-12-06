@@ -13,13 +13,20 @@ from zoneinfo import ZoneInfo
 from math import ceil
 
 from config import settings
-from constants import MAX_IN_PROGRESS, JobStatus
+from constants import MAX_IN_PROGRESS, JobStatus, FileType
 from database import session_scope, init_engine
 from models.job_models import Job, JobFiles
 from models.user_models import User
-from utils.email import send_email, FAILURE_TEMPLATE, SUCCESS_TEMPLATE_WITH_FILES, SUCCESS_TEMPLATE_WITHOUT_FILES
+from utils.email import (
+    send_email,
+    FAILURE_TEMPLATE,
+    SUCCESS_TEMPLATE,
+    FILE_GENERATED_TEMPLATE,
+    FILE_GENERATED_CONTAINER_TEMPLATE,
+    FILE_LINK_TEMPLATE,
+)
 from utils.logger import logger
-from utils.s3 import get_signed_url, get_signed_upload_url, delete_file
+from utils.s3 import file_exists, get_signed_url, get_signed_upload_url, delete_file
 from utils.utils import format_file_size
 
 
@@ -103,7 +110,34 @@ def process_task_response(db_session, response: dict, job: Job):
     Job.update_status(db_session, job.id, JobStatus.PROCESSING, task_id)
 
 
-def process_manifest_file(db_session, job: Job):
+def add_job_file(db_session, job: Job, file_type: FileType):
+    s3_client = boto3.client("s3")
+    s3_bucket = settings.PROCESSED_FILES_BUCKET
+
+    if file_type == FileType.OUTPUT_LOG:
+        s3_key = f"{job.id}/output.log"
+        file_name = "output.log"
+    elif file_type == FileType.ERROR_LOG:
+        s3_key = f"{job.id}/error.log"
+        file_name = "error.log"
+    elif file_type == FileType.ZIPPED_GENERATED:
+        s3_key = f"{job.id}/tasknode_generated_files.zip"
+        file_name = "tasknode_generated_files.zip"
+    else:
+        raise ValueError(f"Invalid file type: {file_type}")
+
+    # check if the file exists in S3
+    if not file_exists(s3_bucket, s3_key):
+        return None
+
+    response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
+    file_size = response["ContentLength"]
+    file_timestamp = response["LastModified"]
+
+    return JobFiles.create(db_session, job.id, s3_bucket, s3_key, file_name, file_size, file_timestamp, file_type)
+
+
+def process_manifest_file(db_session, job: Job) -> list[JobFiles]:
     # Read the manifest file directly from S3
     s3_client = boto3.client("s3")
     s3_bucket = settings.PROCESSED_FILES_BUCKET
@@ -123,12 +157,20 @@ def process_manifest_file(db_session, job: Job):
                 continue
             file_name, file_size, file_unix_timestamp = line.split(",")
             file_timestamp = datetime.fromtimestamp(int(file_unix_timestamp), tz=ZoneInfo("UTC"))
-            jobfile = JobFiles.create(db_session, job.id, s3_bucket, s3_key, file_name, file_size, file_timestamp)
+            jobfile = JobFiles.create(
+                db_session, job.id, s3_bucket, s3_key, file_name, file_size, file_timestamp, FileType.GENERATED
+            )
             job_files.append(jobfile)
+    except s3_client.exceptions.NoSuchKey:
+        # If the manifest file doesn't exist, return empty list
+        logger.info(f"No manifest file found at {s3_bucket}/{s3_key}")
+        return []
     except Exception as e:
         logger.error(f"Error reading manifest file from S3: {str(e)}")
         raise
 
+    if job_files:
+        add_job_file(db_session, job, FileType.ZIPPED_GENERATED)
     return job_files
 
 
@@ -172,65 +214,98 @@ def update_jobs_in_progress(db_session):
 
             if task_status == "STOPPED":
                 exit_code, runtime = get_task_details(task)
+                script_succeeded = exit_code == 0
                 logger.info(f"Task status: {task_status}, exit code: {exit_code}, runtime: {runtime}")
 
                 runtime_minutes = ceil(runtime / 60)
 
                 user = User.get_by_id(db_session, job.user_id)
-                if exit_code == 0:
-                    job_files = process_manifest_file(db_session, job)
 
-                    # Create file list HTML
-                    file_list_html = "\n".join(
-                        [
-                            f"<li>{job_file.file_name} ({format_file_size(float(job_file.file_size))})</li>"
-                            for job_file in job_files
-                        ]
-                    )
+                job_files = process_manifest_file(db_session, job)
 
-                    signed_url_output_log = get_signed_url(
+                # Generate signed URLs first
+                signed_url_file_zip = (
+                    get_signed_url(
                         settings.PROCESSED_FILES_BUCKET,
-                        f"{job.id}/output.log",
+                        f"{job.id}/tasknode_generated_files.zip",
+                        expiration=60 * 60 * 72,
+                        filename="tasknode_generated_files.zip",
+                    )
+                    if job_files
+                    else None
+                )
+
+                output_logs = add_job_file(db_session, job, FileType.OUTPUT_LOG)
+                error_logs = add_job_file(db_session, job, FileType.ERROR_LOG)
+
+                signed_url_output_log = (
+                    get_signed_url(
+                        settings.PROCESSED_FILES_BUCKET,
+                        output_logs.s3_key,
                         expiration=60 * 60 * 72,
                         filename="output.log",
                     )
-                    signed_url_error_log = get_signed_url(
+                    if output_logs and output_logs.file_size > 0
+                    else None
+                )
+
+                signed_url_error_log = (
+                    get_signed_url(
                         settings.PROCESSED_FILES_BUCKET,
-                        f"{job.id}/error.log",
+                        error_logs.s3_key,
                         expiration=60 * 60 * 72,
                         filename="error.log",
                     )
+                    if error_logs and error_logs.file_size > 0
+                    else None
+                )
 
-                    if job_files:
-                        signed_url_file_zip = get_signed_url(
-                            settings.PROCESSED_FILES_BUCKET,
-                            f"{job.id}/files.zip",
-                            expiration=60 * 60 * 72,
-                            filename="generated_files.zip",
-                        )
-                        send_email(
-                            [user.email],
-                            "Tasknode task completed",
-                            SUCCESS_TEMPLATE_WITH_FILES.format(
-                                task_id=job.id,
-                                file_list=file_list_html,
-                                signed_url_file_zip=signed_url_file_zip,
-                                signed_url_output_log=signed_url_output_log,
-                                signed_url_error_log=signed_url_error_log,
-                                runtime_minutes=runtime_minutes,
-                            ),
-                        )
-                    else:
-                        send_email(
-                            [user.email],
-                            "Tasknode task completed",
-                            SUCCESS_TEMPLATE_WITHOUT_FILES.format(
-                                task_id=job.id,
-                                signed_url_output_log=signed_url_output_log,
-                                signed_url_error_log=signed_url_error_log,
-                                runtime_minutes=runtime_minutes,
-                            ),
-                        )
+                # Now create file list HTML using the templates
+                file_list_container = ""
+                if job_files:
+                    file_list_html = "\n".join(
+                        [
+                            FILE_GENERATED_TEMPLATE.format(
+                                file_name=f"{job_file.file_name} ({format_file_size(float(job_file.file_size))})",
+                            )
+                            for job_file in job_files
+                        ]
+                    )
+                    file_list_container = FILE_GENERATED_CONTAINER_TEMPLATE.format(file_list=file_list_html)
+
+                # Create output/error log links using the template
+                output_log_link = (
+                    FILE_LINK_TEMPLATE.format(signed_url=signed_url_output_log, file_name="Output Log")
+                    if output_logs and output_logs.file_size > 0
+                    else ""
+                )
+
+                error_log_link = (
+                    FILE_LINK_TEMPLATE.format(signed_url=signed_url_error_log, file_name="Error Log")
+                    if error_logs and error_logs.file_size > 0
+                    else ""
+                )
+
+                generated_files_link = (
+                    FILE_LINK_TEMPLATE.format(signed_url=signed_url_file_zip, file_name="Generated Files (ZIP)")
+                    if signed_url_file_zip
+                    else ""
+                )
+
+                if script_succeeded and job_files:
+                    send_email(
+                        [user.email],
+                        "Tasknode task completed",
+                        SUCCESS_TEMPLATE.format(
+                            task_id=job.id,
+                            file_list_container=file_list_container,
+                            output_log_link=output_log_link,
+                            error_log_link=error_log_link,
+                            generated_files_link=generated_files_link,
+                            runtime_minutes=runtime_minutes,
+                        ),
+                    )
+
                     Job.update_status(db_session, job.id, JobStatus.COMPLETED, runtime=runtime)
 
                     # Clean up the input file from the file drop bucket
@@ -238,7 +313,18 @@ def update_jobs_in_progress(db_session):
                     delete_file(job.s3_bucket, job.s3_key)
                     Job.update_upload_removed(db_session, job.id, True)
                 else:
-                    send_email([user.email], "Tasknode task failed", FAILURE_TEMPLATE.format(task_id=job.id))
+                    send_email(
+                        [user.email],
+                        "Tasknode task failed",
+                        FAILURE_TEMPLATE.format(
+                            task_id=job.id,
+                            runtime_minutes=runtime_minutes,
+                            file_list_container=file_list_container,
+                            output_log_link=output_log_link,
+                            error_log_link=error_log_link,
+                            generated_files_link=generated_files_link,
+                        ),
+                    )
                     Job.update_status(db_session, job.id, JobStatus.FAILED, runtime=runtime)
 
 
@@ -275,7 +361,7 @@ def handle_files(event, context):
                 presigned_download_url = get_signed_url(job.s3_bucket, job.s3_key, expiration=180)
                 presigned_zip_upload_url = get_signed_upload_url(
                     settings.PROCESSED_FILES_BUCKET,
-                    f"{job.id}/files.zip",
+                    f"{job.id}/tasknode_generated_files.zip",
                     content_type="application/zip",
                     expiration=60 * 60 * 48,
                     cognito_id=cognito_id,

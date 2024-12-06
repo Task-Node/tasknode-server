@@ -20,7 +20,11 @@ def generate_presigned_urls():
     upload_urls = {
         "zip": s3_client.generate_presigned_url(
             "put_object",
-            Params={"Bucket": processed_bucket, "Key": f"{job_id}/files.zip", "ContentType": "application/zip"},
+            Params={
+                "Bucket": processed_bucket,
+                "Key": f"{job_id}/tasknode_generated_files.zip",
+                "ContentType": "application/zip",
+            },
             ExpiresIn=86400,
         ),
         "manifest": s3_client.generate_presigned_url(

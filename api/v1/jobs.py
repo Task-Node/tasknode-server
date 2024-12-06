@@ -6,6 +6,7 @@ from typing import Optional
 import uuid
 
 from config import settings
+from constants import FileType
 from database import get_db
 from models.job_models import Job, JobFiles
 from models.user_models import User
@@ -123,8 +124,8 @@ async def get_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Get associated files
-    job_files = JobFiles.get_by_job_id(session, job.id)
+    # Get associated files (only GENERATED type)
+    job_files = JobFiles.get_by_job_id(session, job.id, file_type=FileType.GENERATED)
     files = [
         JobFileItem(
             file_name=f.file_name,

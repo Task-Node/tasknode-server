@@ -68,7 +68,7 @@ done
 wait $SCRIPT_PID
 SCRIPT_EXIT_CODE=$?
 
-# Upload final logs
+# Upload final logs and collect outputs
 echo "Uploading final log files..."
 curl -v -H 'Content-Type: text/plain' -T tasknode_output.log "$OUTPUT_LOG_UPLOAD_URL" > /dev/null 2>&1 || echo 'Final output log upload failed'
 curl -v -H 'Content-Type: text/plain' -T tasknode_error.log "$ERROR_LOG_UPLOAD_URL" > /dev/null 2>&1 || echo 'Final error log upload failed'
@@ -79,12 +79,6 @@ tail -n 10 tasknode_output.log > tasknode_output.tail
 tail -n 10 tasknode_error.log > tasknode_error.tail
 curl -v -H 'Content-Type: text/plain' -T tasknode_output.tail "$OUTPUT_TAIL_UPLOAD_URL" > /dev/null 2>&1 || echo 'Output tail upload failed'
 curl -v -H 'Content-Type: text/plain' -T tasknode_error.tail "$ERROR_TAIL_UPLOAD_URL" > /dev/null 2>&1 || echo 'Error tail upload failed'
-
-# Exit with the script's exit code
-if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
-    echo "Script failed with exit code $SCRIPT_EXIT_CODE"
-    exit $SCRIPT_EXIT_CODE
-fi
 
 echo 'Script finished'
 
@@ -102,25 +96,24 @@ fi
 
 echo 'Error log found'
 
-
 cd ..
 FILES=$(find . -type f -newer /app/timestamp -print)
 if [ -n "$FILES" ]; then
     echo 'Files to be zipped:'
     echo "$FILES"
     echo 'Found new files to zip'
-    mkdir -p tasknode_outputs
+    mkdir -p tasknode_generated_files
     cd tasknode_deploy
-    find . -type f -newer /app/timestamp -not -name 'tasknode_*.log' -exec stat --format='%n,%s,%Y' {} \; > ../manifest.txt
+    find . -type f -newer /app/timestamp -not -name 'tasknode_*.log' -not -name 'tasknode_*.tail' -exec stat --format='%n,%s,%Y' {} \; > ../manifest.txt
     cd ..
     echo 'Manifest contents:'
     cat ./manifest.txt
     echo 'Uploading manifest file...'
     curl -v -H 'Content-Type: text/plain' -T ./manifest.txt "$MANIFEST_UPLOAD_URL" || echo 'Manifest upload failed with status: $?'
-    find tasknode_deploy -type f -newer /app/timestamp -not -name 'tasknode_*.log' -exec cp {} tasknode_outputs/ \;
-    zip -r tasknode_outputs.zip tasknode_outputs/
+    find tasknode_deploy -type f -newer /app/timestamp -not -name 'tasknode_*.log' -not -name 'tasknode_*.tail' -exec cp {} tasknode_generated_files/ \;
+    zip -r tasknode_generated_files.zip tasknode_generated_files/
     echo 'Uploading generated files zip...'
-    curl -v -H 'Content-Type: application/zip' -T tasknode_outputs.zip "$ZIP_UPLOAD_URL" || echo 'Zip upload failed with status: $?'
+    curl -v -H 'Content-Type: application/zip' -T tasknode_generated_files.zip "$ZIP_UPLOAD_URL" || echo 'Zip upload failed with status: $?'
 else
     echo 'No new generated files found'
     echo 'Creating empty manifest file...'
@@ -129,3 +122,9 @@ else
 fi
 
 echo 'Job finished'
+
+# Move exit code check to the end
+if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
+    echo "Script failed with exit code $SCRIPT_EXIT_CODE"
+    exit $SCRIPT_EXIT_CODE
+fi

@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
 
-from constants import JobStatus
+from constants import JobStatus, FileType
 from utils.utils import get_utc_now
 from database import Base
 from config import settings
@@ -109,28 +109,28 @@ class Job(Base):
     @classmethod
     def get_total_count_by_user_id(cls, session, user_id: int) -> int:
         return session.query(cls).filter(cls.user_id == user_id).count()
-    
+
     @staticmethod
     def get_log_tail(job_id: uuid.UUID, log_type: str = "output"):
         """
         Retrieve the tail log file from S3 for a given job ID.
         Returns the contents as a list of strings, or an empty list if file doesn't exist.
-        
+
         :param job_id: UUID of the job
         :param log_type: Type of log file to retrieve ('output' or 'error')
         """
         assert log_type in ["output", "error"]
         try:
-            s3_client = boto3.client('s3')
+            s3_client = boto3.client("s3")
             bucket = settings.PROCESSED_FILES_BUCKET
             key = f"{str(job_id)}/{log_type}.tail"
-            
+
             response = s3_client.get_object(Bucket=bucket, Key=key)
-            content = response['Body'].read().decode('utf-8')
-            
+            content = response["Body"].read().decode("utf-8")
+
             # Split content into lines and remove empty lines
             return [line for line in content.splitlines() if line]
-            
+
         except s3_client.exceptions.NoSuchKey:
             # File doesn't exist in S3
             return []
@@ -148,10 +148,18 @@ class JobFiles(Base):
     file_name = Column(String, nullable=False)
     file_size = Column(BigInteger, nullable=False)  # in bytes
     file_timestamp = Column(DateTime, nullable=False)
+    file_type = Column(SQLAlchemyEnum(FileType), nullable=False)
     created_at = Column(DateTime, nullable=False, default=get_utc_now)
 
     def __init__(
-        self, job_id: uuid.UUID, s3_bucket: str, s3_key: str, file_name: str, file_size: int, file_timestamp: datetime
+        self,
+        job_id: uuid.UUID,
+        s3_bucket: str,
+        s3_key: str,
+        file_name: str,
+        file_size: int,
+        file_timestamp: datetime,
+        file_type: str,
     ):
         self.job_id = job_id
         self.s3_bucket = s3_bucket
@@ -159,10 +167,11 @@ class JobFiles(Base):
         self.file_name = file_name
         self.file_size = file_size
         self.file_timestamp = file_timestamp
+        self.file_type = file_type
         self.created_at = get_utc_now()
 
     def __repr__(self):
-        return f"<JobFiles {self.id} {self.job_id} {self.s3_bucket} {self.s3_key} {self.file_name} {self.file_size} {self.file_timestamp}>"
+        return f"<JobFiles {self.id} {self.job_id} {self.s3_bucket} {self.s3_key} {self.file_name} {self.file_size} {self.file_timestamp} {self.file_type}>"
 
     @classmethod
     def create(
@@ -174,12 +183,16 @@ class JobFiles(Base):
         file_name: str,
         file_size: int,
         file_timestamp: datetime,
+        file_type: str,
     ):
-        item = cls(job_id, s3_bucket, s3_key, file_name, file_size, file_timestamp)
+        item = cls(job_id, s3_bucket, s3_key, file_name, file_size, file_timestamp, file_type)
         session.add(item)
         session.flush()
         return item
 
     @classmethod
-    def get_by_job_id(cls, session, job_id: uuid.UUID):
-        return session.query(cls).filter(cls.job_id == job_id).all()
+    def get_by_job_id(cls, session, job_id: uuid.UUID, file_type: str = None):
+        query = session.query(cls).filter(cls.job_id == job_id)
+        if file_type:
+            query = query.filter(cls.file_type == file_type)
+        return query.all()
