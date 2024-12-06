@@ -22,10 +22,11 @@ router = APIRouter(prefix="/api/v1/jobs", tags=["Jobs API v1"])
 
 
 class SignedUrlResponse(BaseModel):
-    filename: str
-    description: str
     signedUrl: str
     s3Key: str
+    filename: Optional[str]
+    description: Optional[str]
+    fileSize: Optional[int]
 
 class FileLinkResponse(BaseModel):
     files: list[SignedUrlResponse]
@@ -192,7 +193,8 @@ async def get_job_download_urls(
                 expiration=60 * 60 * 2,
                 filename="tasknode_generated_files.zip"
             ),
-            s3Key=generated_files.s3_key
+            s3Key=generated_files.s3_key,
+            fileSize=generated_files.file_size
         ))
     
     if output_log and output_log.file_size > 0:
@@ -205,7 +207,8 @@ async def get_job_download_urls(
                 expiration=60 * 60 * 2,
                 filename="output.log"
             ),
-            s3Key=output_log.s3_key
+            s3Key=output_log.s3_key,
+            fileSize=output_log.file_size
         ))
     
     if error_log and error_log.file_size > 0:
@@ -218,7 +221,8 @@ async def get_job_download_urls(
                 expiration=60 * 60 * 2,
                 filename="error.log"
             ),
-            s3Key=error_log.s3_key
+            s3Key=error_log.s3_key,
+            fileSize=error_log.file_size
         ))
     
     return FileLinkResponse(files=files)
