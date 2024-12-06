@@ -24,7 +24,13 @@ def upgrade() -> None:
         "job_files",
         sa.Column(
             "file_type",
-            sa.Enum("OUTPUT_LOG", "ERROR_LOG", "GENERATED", "ZIPPED_GENERATED", name="filetype"),
+            sa.Enum(
+                "OUTPUT_LOG",
+                "ERROR_LOG",
+                "GENERATED",
+                "ZIPPED_GENERATED",
+                name="filetype",
+            ),
             nullable=True,
         ),
     )

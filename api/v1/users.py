@@ -65,7 +65,11 @@ async def create_user(user_data: UserCreate, session: Session = Depends(get_db))
         )
 
         # Create user in database
-        user = User.create(session=session, cognito_id=cognito_response["UserSub"], email=user_data.email)
+        user = User.create(
+            session=session,
+            cognito_id=cognito_response["UserSub"],
+            email=user_data.email,
+        )
 
         session.commit()
 
@@ -89,7 +93,10 @@ async def login(user_data: UserCreate, session: Session = Depends(get_db)):
         auth_response = cognito_client.initiate_auth(
             ClientId=settings.COGNITO_CLIENT_ID,
             AuthFlow="USER_PASSWORD_AUTH",
-            AuthParameters={"USERNAME": user_data.email, "PASSWORD": user_data.password},
+            AuthParameters={
+                "USERNAME": user_data.email,
+                "PASSWORD": user_data.password,
+            },
         )
 
         return {
@@ -100,7 +107,8 @@ async def login(user_data: UserCreate, session: Session = Depends(get_db)):
         }
     except cognito_client.exceptions.UserNotConfirmedException:
         raise HTTPException(
-            status_code=403, detail="User is not verified. Please check your email for verification instructions"
+            status_code=403,
+            detail="User is not verified. Please check your email for verification instructions",
         )
     except (
         cognito_client.exceptions.NotAuthorizedException,

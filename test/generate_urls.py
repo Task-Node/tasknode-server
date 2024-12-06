@@ -13,7 +13,9 @@ def generate_presigned_urls():
 
     # Generate download URL (60 second expiry)
     download_url = s3_client.generate_presigned_url(
-        "get_object", Params={"Bucket": bucket, "Key": "134663f0-0b33-403c-86be-2c715829155d.zip"}, ExpiresIn=60
+        "get_object",
+        Params={"Bucket": bucket, "Key": "134663f0-0b33-403c-86be-2c715829155d.zip"},
+        ExpiresIn=60,
     )
 
     # Generate upload URLs (24 hour expiry)
@@ -29,17 +31,29 @@ def generate_presigned_urls():
         ),
         "manifest": s3_client.generate_presigned_url(
             "put_object",
-            Params={"Bucket": processed_bucket, "Key": f"{job_id}/manifest.txt", "ContentType": "text/plain"},
+            Params={
+                "Bucket": processed_bucket,
+                "Key": f"{job_id}/manifest.txt",
+                "ContentType": "text/plain",
+            },
             ExpiresIn=86400,
         ),
         "output_log": s3_client.generate_presigned_url(
             "put_object",
-            Params={"Bucket": processed_bucket, "Key": f"{job_id}/output.log", "ContentType": "text/plain"},
+            Params={
+                "Bucket": processed_bucket,
+                "Key": f"{job_id}/output.log",
+                "ContentType": "text/plain",
+            },
             ExpiresIn=86400,
         ),
         "error_log": s3_client.generate_presigned_url(
             "put_object",
-            Params={"Bucket": processed_bucket, "Key": f"{job_id}/error.log", "ContentType": "text/plain"},
+            Params={
+                "Bucket": processed_bucket,
+                "Key": f"{job_id}/error.log",
+                "ContentType": "text/plain",
+            },
             ExpiresIn=86400,
         ),
     }

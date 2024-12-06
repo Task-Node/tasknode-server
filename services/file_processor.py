@@ -54,11 +54,26 @@ def create_task_definition(
                 "environment": [
                     {"name": "DOWNLOAD_URL", "value": presigned_download_url},
                     {"name": "ZIP_UPLOAD_URL", "value": presigned_zip_upload_url},
-                    {"name": "MANIFEST_UPLOAD_URL", "value": presigned_manifest_upload_url},
-                    {"name": "OUTPUT_LOG_UPLOAD_URL", "value": presigned_output_log_upload_url},
-                    {"name": "ERROR_LOG_UPLOAD_URL", "value": presigned_error_log_upload_url},
-                    {"name": "OUTPUT_TAIL_UPLOAD_URL", "value": presigned_output_tail_upload_url},
-                    {"name": "ERROR_TAIL_UPLOAD_URL", "value": presigned_error_tail_upload_url},
+                    {
+                        "name": "MANIFEST_UPLOAD_URL",
+                        "value": presigned_manifest_upload_url,
+                    },
+                    {
+                        "name": "OUTPUT_LOG_UPLOAD_URL",
+                        "value": presigned_output_log_upload_url,
+                    },
+                    {
+                        "name": "ERROR_LOG_UPLOAD_URL",
+                        "value": presigned_error_log_upload_url,
+                    },
+                    {
+                        "name": "OUTPUT_TAIL_UPLOAD_URL",
+                        "value": presigned_output_tail_upload_url,
+                    },
+                    {
+                        "name": "ERROR_TAIL_UPLOAD_URL",
+                        "value": presigned_error_tail_upload_url,
+                    },
                     {"name": "AWS_DEFAULT_REGION", "value": settings.REGION},
                 ],
                 "logConfiguration": {
@@ -134,7 +149,16 @@ def add_job_file(db_session, job: Job, file_type: FileType):
     file_size = response["ContentLength"]
     file_timestamp = response["LastModified"]
 
-    return JobFiles.create(db_session, job.id, s3_bucket, s3_key, file_name, file_size, file_timestamp, file_type)
+    return JobFiles.create(
+        db_session,
+        job.id,
+        s3_bucket,
+        s3_key,
+        file_name,
+        file_size,
+        file_timestamp,
+        file_type,
+    )
 
 
 def process_manifest_file(db_session, job: Job) -> list[JobFiles]:
@@ -158,7 +182,14 @@ def process_manifest_file(db_session, job: Job) -> list[JobFiles]:
             file_name, file_size, file_unix_timestamp = line.split(",")
             file_timestamp = datetime.fromtimestamp(int(file_unix_timestamp), tz=ZoneInfo("UTC"))
             jobfile = JobFiles.create(
-                db_session, job.id, s3_bucket, s3_key, file_name, file_size, file_timestamp, FileType.GENERATED
+                db_session,
+                job.id,
+                s3_bucket,
+                s3_key,
+                file_name,
+                file_size,
+                file_timestamp,
+                FileType.GENERATED,
             )
             job_files.append(jobfile)
     except s3_client.exceptions.NoSuchKey:
@@ -200,8 +231,14 @@ def update_jobs_in_progress(db_session):
     jobs = Job.get_all_in_progress(db_session)
     logger.info(f"Updating {len(jobs)} jobs in progress")
     for job in jobs:
-        logger.info(job)
-        arn = job.fargate_task_id
+        # Lock the job row before updating
+        locked_job = db_session.query(Job).filter(Job.id == job.id).with_for_update().first()
+        if not locked_job:
+            logger.warning(f"Job {job.id} not found when trying to lock")
+            continue
+
+        logger.info(f"Processing job: {locked_job}")
+        arn = locked_job.fargate_task_id
         ecs = boto3.client("ecs")
         response = ecs.describe_tasks(cluster=settings.ECS_CLUSTER, tasks=[arn])
         logger.info(response)
@@ -213,22 +250,22 @@ def update_jobs_in_progress(db_session):
             task_status = task["lastStatus"]
 
             # Only process if the task is STOPPED and we haven't processed it before
-            if task_status == "STOPPED" and job.status == JobStatus.PROCESSING:
+            if task_status == "STOPPED" and locked_job.status == JobStatus.PROCESSING:
                 exit_code, runtime = get_task_details(task)
                 script_succeeded = exit_code == 0
                 logger.info(f"Task status: {task_status}, exit code: {exit_code}, runtime: {runtime}")
 
                 runtime_minutes = ceil(runtime / 60)
 
-                user = User.get_by_id(db_session, job.user_id)
+                user = User.get_by_id(db_session, locked_job.user_id)
 
-                job_files = process_manifest_file(db_session, job)
+                job_files = process_manifest_file(db_session, locked_job)
 
                 # Generate signed URLs first
                 signed_url_file_zip = (
                     get_signed_url(
                         settings.PROCESSED_FILES_BUCKET,
-                        f"{job.id}/tasknode_generated_files.zip",
+                        f"{locked_job.id}/tasknode_generated_files.zip",
                         expiration=60 * 60 * 72,
                         filename="tasknode_generated_files.zip",
                     )
@@ -236,8 +273,8 @@ def update_jobs_in_progress(db_session):
                     else None
                 )
 
-                output_logs = add_job_file(db_session, job, FileType.OUTPUT_LOG)
-                error_logs = add_job_file(db_session, job, FileType.ERROR_LOG)
+                output_logs = add_job_file(db_session, locked_job, FileType.OUTPUT_LOG)
+                error_logs = add_job_file(db_session, locked_job, FileType.ERROR_LOG)
 
                 signed_url_output_log = (
                     get_signed_url(
@@ -288,17 +325,20 @@ def update_jobs_in_progress(db_session):
                 )
 
                 generated_files_link = (
-                    FILE_LINK_TEMPLATE.format(signed_url=signed_url_file_zip, file_name="Generated Files (ZIP)")
+                    FILE_LINK_TEMPLATE.format(
+                        signed_url=signed_url_file_zip,
+                        file_name="Generated Files (ZIP)",
+                    )
                     if signed_url_file_zip
                     else ""
                 )
 
-                if script_succeeded and job_files:
+                if script_succeeded:
                     send_email(
                         [user.email],
                         "Tasknode task completed",
                         SUCCESS_TEMPLATE.format(
-                            task_id=job.id,
+                            task_id=locked_job.id,
                             file_list_container=file_list_container,
                             output_log_link=output_log_link,
                             error_log_link=error_log_link,
@@ -307,18 +347,18 @@ def update_jobs_in_progress(db_session):
                         ),
                     )
 
-                    Job.update_status(db_session, job.id, JobStatus.COMPLETED, runtime=runtime)
+                    Job.update_status(db_session, locked_job.id, JobStatus.COMPLETED, runtime=runtime)
 
                     # Clean up the input file from the file drop bucket
-                    logger.info(f"Cleaning up input file for job {job.id} from bucket {job.s3_bucket}")
-                    delete_file(job.s3_bucket, job.s3_key)
-                    Job.update_upload_removed(db_session, job.id, True)
+                    logger.info(f"Cleaning up input file for job {locked_job.id} from bucket {locked_job.s3_bucket}")
+                    delete_file(locked_job.s3_bucket, locked_job.s3_key)
+                    Job.update_upload_removed(db_session, locked_job.id, True)
                 else:
                     send_email(
                         [user.email],
                         "Tasknode task failed",
                         FAILURE_TEMPLATE.format(
-                            task_id=job.id,
+                            task_id=locked_job.id,
                             runtime_minutes=runtime_minutes,
                             file_list_container=file_list_container,
                             output_log_link=output_log_link,
@@ -326,7 +366,7 @@ def update_jobs_in_progress(db_session):
                             generated_files_link=generated_files_link,
                         ),
                     )
-                    Job.update_status(db_session, job.id, JobStatus.FAILED, runtime=runtime)
+                    Job.update_status(db_session, locked_job.id, JobStatus.FAILED, runtime=runtime)
 
 
 def handle_files(event, context):

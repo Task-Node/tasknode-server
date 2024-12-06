@@ -111,7 +111,11 @@ def get_signed_url(bucket_name: str, file_key: str, expiration: int = 60, filena
 
 
 def get_signed_upload_url(
-    bucket_name: str, file_key: str, content_type: str, expiration: int = 60, cognito_id: str = None
+    bucket_name: str,
+    file_key: str,
+    content_type: str,
+    expiration: int = 60,
+    cognito_id: str = None,
 ) -> str:
     """
     Generates a presigned URL for a file in an S3 bucket

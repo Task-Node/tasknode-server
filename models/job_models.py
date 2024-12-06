@@ -1,6 +1,14 @@
 import boto3
 from datetime import datetime
-from sqlalchemy import Column, DateTime, String, Enum as SQLAlchemyEnum, BigInteger, ForeignKey, Boolean
+from sqlalchemy import (
+    Column,
+    DateTime,
+    String,
+    Enum as SQLAlchemyEnum,
+    BigInteger,
+    ForeignKey,
+    Boolean,
+)
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
@@ -25,7 +33,14 @@ class Job(Base):
     created_at = Column(DateTime, nullable=False, default=get_utc_now)
     updated_at = Column(DateTime, nullable=False, default=get_utc_now)
 
-    def __init__(self, user_id: int, s3_bucket: str, s3_key: str, status: str, fargate_task_id: str = None):
+    def __init__(
+        self,
+        user_id: int,
+        s3_bucket: str,
+        s3_key: str,
+        status: str,
+        fargate_task_id: str = None,
+    ):
         self.id = uuid.uuid4()
         self.user_id = user_id
         self.s3_bucket = s3_bucket
@@ -45,7 +60,15 @@ class Job(Base):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
     @classmethod
-    def create(cls, session, user_id: int, s3_bucket: str, s3_key: str, status: str, fargate_task_id: str = None):
+    def create(
+        cls,
+        session,
+        user_id: int,
+        s3_bucket: str,
+        s3_key: str,
+        status: str,
+        fargate_task_id: str = None,
+    ):
         item = cls(user_id, s3_bucket, s3_key, status, fargate_task_id)
         session.add(item)
         session.flush()
@@ -86,7 +109,14 @@ class Job(Base):
         return session.query(cls).filter(cls.status == JobStatus.PENDING).order_by(cls.created_at.asc()).first()
 
     @classmethod
-    def update_status(cls, session, id: uuid.UUID, status: JobStatus, fargate_task_id: str = None, runtime: int = None):
+    def update_status(
+        cls,
+        session,
+        id: uuid.UUID,
+        status: JobStatus,
+        fargate_task_id: str = None,
+        runtime: int = None,
+    ):
         update = {"status": status, "updated_at": get_utc_now()}
         if fargate_task_id:
             update["fargate_task_id"] = fargate_task_id
@@ -111,7 +141,7 @@ class Job(Base):
         return session.query(cls).filter(cls.user_id == user_id).count()
 
     @staticmethod
-    def get_log_tail(job_id: uuid.UUID, log_type: str = "output"):
+    def get_log_tail(job_id: uuid.UUID, log_type: str = "output", n: int = 10):
         """
         Retrieve the tail log file from S3 for a given job ID.
         Returns the contents as a list of strings, or an empty list if file doesn't exist.
@@ -129,7 +159,7 @@ class Job(Base):
             content = response["Body"].read().decode("utf-8")
 
             # Split content into lines and remove empty lines
-            return [line for line in content.splitlines() if line]
+            return [line for line in content.splitlines() if line][-n:]
 
         except s3_client.exceptions.NoSuchKey:
             # File doesn't exist in S3

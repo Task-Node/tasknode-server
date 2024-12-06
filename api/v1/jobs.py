@@ -28,8 +28,10 @@ class SignedUrlResponse(BaseModel):
     description: Optional[str]
     fileSize: Optional[int]
 
+
 class FileLinkResponse(BaseModel):
     files: list[SignedUrlResponse]
+
 
 class JobFileItem(BaseModel):
     file_name: str
@@ -67,7 +69,11 @@ async def get_zip_upload_url(
 
     filename = f"{uuid.uuid4()}.zip"
     signed_url = get_signed_upload_url(
-        settings.FILE_DROP_BUCKET, filename, "application/zip", 30, cognito_id=cognito_id
+        settings.FILE_DROP_BUCKET,
+        filename,
+        "application/zip",
+        30,
+        cognito_id=cognito_id,
     )
     return SignedUrlResponse(signedUrl=signed_url, s3Key=filename)
 
@@ -101,6 +107,7 @@ async def get_job(
     job_identifier: str,
     session: Session = Depends(get_db),
     current_user: dict = Security(auth.get_current_user),
+    tail_lines: int = 10,
 ) -> JobResponseItem:
     cognito_id = current_user["sub"]
     user: User = User.get_by_cognito_id(session, cognito_id)
@@ -137,12 +144,12 @@ async def get_job(
             file_size=f.file_size,
             file_timestamp=f.file_timestamp,
         )
-        for f in job_files if f.file_type == FileType.GENERATED
+        for f in job_files
+        if f.file_type == FileType.GENERATED
     ]
 
-    output_log_tail = Job.get_log_tail(job.id, "output")
-    error_log_tail = Job.get_log_tail(job.id, "error")
-
+    output_log_tail = Job.get_log_tail(job.id, "output", n=tail_lines)
+    error_log_tail = Job.get_log_tail(job.id, "error", n=tail_lines)
 
     return JobResponseItem(
         id=str(job.id),
@@ -156,17 +163,16 @@ async def get_job(
     )
 
 
-
 @router.get("/{job_id}/download_urls", response_model=FileLinkResponse)
 async def get_job_download_urls(
     job_id: uuid.UUID,
     session: Session = Depends(get_db),
-    current_user: dict = Security(auth.get_current_user)
+    current_user: dict = Security(auth.get_current_user),
 ) -> FileLinkResponse:
     """Get signed URLs to download the job's files (generated files, output log, and error log)."""
 
     user: User = User.get_by_cognito_id(session, current_user["sub"])
-    
+
     # Get the job and verify it exists
     job = Job.get_by_id(session, job_id, user.id)
     if not job:
@@ -174,7 +180,7 @@ async def get_job_download_urls(
 
     # Get all job files
     job_files = JobFiles.get_by_job_id(session, job_id)
-    
+
     # Find specific file types
     generated_files = next((f for f in job_files if f.file_type == FileType.ZIPPED_GENERATED), None)
     output_log = next((f for f in job_files if f.file_type == FileType.OUTPUT_LOG), None)
@@ -182,47 +188,53 @@ async def get_job_download_urls(
 
     # Generate signed URLs with 72 hour expiry
     files = []
-    
+
     if generated_files and generated_files.file_size > 0:
-        files.append(SignedUrlResponse(
-            filename="tasknode_generated_files.zip",
-            description="The generated files for this job.",
-            signedUrl=get_signed_url(
-                settings.PROCESSED_FILES_BUCKET,
-                generated_files.s3_key,
-                expiration=60 * 60 * 2,
-                filename="tasknode_generated_files.zip"
-            ),
-            s3Key=generated_files.s3_key,
-            fileSize=generated_files.file_size
-        ))
-    
+        files.append(
+            SignedUrlResponse(
+                filename="tasknode_generated_files.zip",
+                description="The generated files for this job.",
+                signedUrl=get_signed_url(
+                    settings.PROCESSED_FILES_BUCKET,
+                    generated_files.s3_key,
+                    expiration=60 * 60 * 2,
+                    filename="tasknode_generated_files.zip",
+                ),
+                s3Key=generated_files.s3_key,
+                fileSize=generated_files.file_size,
+            )
+        )
+
     if output_log and output_log.file_size > 0:
-        files.append(SignedUrlResponse(
-            filename="output.log",
-            description="The output logs for this job.",
-            signedUrl=get_signed_url(
-                settings.PROCESSED_FILES_BUCKET,
-                output_log.s3_key,
-                expiration=60 * 60 * 2,
-                filename="output.log"
-            ),
-            s3Key=output_log.s3_key,
-            fileSize=output_log.file_size
-        ))
-    
+        files.append(
+            SignedUrlResponse(
+                filename="output.log",
+                description="The output logs for this job.",
+                signedUrl=get_signed_url(
+                    settings.PROCESSED_FILES_BUCKET,
+                    output_log.s3_key,
+                    expiration=60 * 60 * 2,
+                    filename="output.log",
+                ),
+                s3Key=output_log.s3_key,
+                fileSize=output_log.file_size,
+            )
+        )
+
     if error_log and error_log.file_size > 0:
-        files.append(SignedUrlResponse(
-            filename="error.log",
-            description="The error logs for this job.",
-            signedUrl=get_signed_url(
-                settings.PROCESSED_FILES_BUCKET,
-                error_log.s3_key,
-                expiration=60 * 60 * 2,
-                filename="error.log"
-            ),
-            s3Key=error_log.s3_key,
-            fileSize=error_log.file_size
-        ))
-    
+        files.append(
+            SignedUrlResponse(
+                filename="error.log",
+                description="The error logs for this job.",
+                signedUrl=get_signed_url(
+                    settings.PROCESSED_FILES_BUCKET,
+                    error_log.s3_key,
+                    expiration=60 * 60 * 2,
+                    filename="error.log",
+                ),
+                s3Key=error_log.s3_key,
+                fileSize=error_log.file_size,
+            )
+        )
+
     return FileLinkResponse(files=files)

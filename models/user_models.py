@@ -67,7 +67,8 @@ class User(Base):
                 logger.info(cognito_user)
 
                 email = next(
-                    (attr["Value"] for attr in cognito_user["UserAttributes"] if attr["Name"] == "email"), None
+                    (attr["Value"] for attr in cognito_user["UserAttributes"] if attr["Name"] == "email"),
+                    None,
                 )
                 if not email:
                     raise TaskNodeException(f"User not found: {cognito_id}")
