@@ -98,8 +98,9 @@ async def login(user_data: UserCreate, session: Session = Depends(get_db)):
                 "PASSWORD": user_data.password,
             },
         )
-
+        
         return {
+            "email": user_data.email,
             "access_token": auth_response["AuthenticationResult"]["AccessToken"],
             "id_token": auth_response["AuthenticationResult"]["IdToken"],
             "refresh_token": auth_response["AuthenticationResult"]["RefreshToken"],
