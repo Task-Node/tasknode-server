@@ -1,10 +1,10 @@
-from database import init_engine, session_scope
 from datetime import datetime, timedelta
+
 from server.models.job_models import Job
 
-from utils.s3 import get_all_files_in_bucket, delete_file
-
 from config import settings
+from database import init_engine, session_scope
+from utils.s3 import delete_file, get_all_files_in_bucket
 
 
 def cleanup_s3_handler(event, context):

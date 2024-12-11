@@ -1,7 +1,8 @@
-from dotenv import load_dotenv
-from pydantic import BaseSettings
 import os
 from typing import List
+
+from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
 
 load_dotenv()
 
@@ -15,15 +16,15 @@ class Default(BaseSettings):
     REGION: str = "us-east-1"
     SQLALCHEMY_DATABASE_URI: str = ""
     CUSTOM_DOMAIN: str = ""
-    ROOT_PATH: str = None
-    AWS_PROFILE: str = None
+    ROOT_PATH: str = ""
+    AWS_PROFILE: str = ""
     ADMIN_EMAILS: List[str] = os.environ["ADMIN_EMAILS"]
     COGNITO_CLIENT_ID: str = os.environ["COGNITO_CLIENT_ID"]
     COGNITO_USER_POOL: str = os.environ["COGNITO_USER_POOL"]
     COGNITO_USER_POOL_ID: str = os.environ["COGNITO_USER_POOL_ID"]
     COGNITO_USER_POOL_REGION: str = "us-east-1"
     COGNITO_WEB_CLIENT_ID: str = "tasknode-dev-client"
-    API_KEY: str = os.environ["TASKNODE_API_KEY"]
+    API_KEY: str = os.environ["API_KEY"]
     CACHE_DISABLED: bool = False
 
     AWS_ACCOUNT_ID: str = os.environ["AWS_ACCOUNT_ID"]

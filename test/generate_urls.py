@@ -1,6 +1,7 @@
-import boto3
-from datetime import datetime
 import json
+from datetime import datetime
+
+import boto3
 
 
 def generate_presigned_urls():

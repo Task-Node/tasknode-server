@@ -1,8 +1,8 @@
+import requests
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jwt import PyJWT, get_unverified_header, PyJWKClient
+from jwt import PyJWKClient, PyJWT
 from jwt.exceptions import InvalidTokenError
-import requests
 
 from config import settings
 
@@ -34,10 +34,6 @@ class VerifyToken:
             if token == settings.API_KEY:
                 return {"sub": "system"}
 
-            header = get_unverified_header(token)
-            kid = header["kid"]
-
-            # Use PyJWKClient to fetch the key
             jwk_client = PyJWKClient(self.jwks_url)
             signing_key = jwk_client.get_signing_key_from_jwt(token)
 

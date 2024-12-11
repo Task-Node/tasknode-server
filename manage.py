@@ -1,6 +1,5 @@
 import os
 import sys
-from database import init_db
 
 import uvicorn
 

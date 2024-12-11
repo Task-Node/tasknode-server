@@ -1,6 +1,7 @@
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-from contextlib import contextmanager
 
 from config import settings
 from utils.logger import logger

@@ -1,4 +1,4 @@
-""" add file type to job_files
+"""add file type to job_files
 
 Revision ID: 9215bb47a05c
 Revises: e3d02a8e5b1a
@@ -6,9 +6,9 @@ Create Date: 2024-12-05 20:03:21.947815
 
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "9215bb47a05c"

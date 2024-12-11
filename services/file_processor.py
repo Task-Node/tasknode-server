@@ -6,27 +6,28 @@ except ImportError:
     pass
 
 
-import boto3
 from datetime import datetime
-from sqlalchemy import text
-from zoneinfo import ZoneInfo
 from math import ceil
+from zoneinfo import ZoneInfo
+
+import boto3
+from sqlalchemy import text
 
 from config import settings
-from constants import MAX_IN_PROGRESS, JobStatus, FileType
-from database import session_scope, init_engine
+from constants import MAX_IN_PROGRESS, FileType, JobStatus
+from database import init_engine, session_scope
 from models.job_models import Job, JobFiles
 from models.user_models import User
 from utils.email import (
-    send_email,
     FAILURE_TEMPLATE,
-    SUCCESS_TEMPLATE,
-    FILE_GENERATED_TEMPLATE,
     FILE_GENERATED_CONTAINER_TEMPLATE,
+    FILE_GENERATED_TEMPLATE,
     FILE_LINK_TEMPLATE,
+    SUCCESS_TEMPLATE,
+    send_email,
 )
 from utils.logger import logger
-from utils.s3 import file_exists, get_signed_url, get_signed_upload_url, delete_file
+from utils.s3 import delete_file, file_exists, get_signed_upload_url, get_signed_url
 from utils.utils import format_file_size
 
 
@@ -49,7 +50,10 @@ def create_task_definition(
         "containerDefinitions": [
             {
                 "name": "tasknode-container",
-                "image": f"{settings.AWS_ACCOUNT_ID}.dkr.ecr.{settings.REGION}.amazonaws.com/tasknode-processor-{settings.ENV}:latest",
+                "image": (
+                    f"{settings.AWS_ACCOUNT_ID}.dkr.ecr.{settings.REGION}"
+                    f".amazonaws.com/tasknode-processor-{settings.ENV}:latest"
+                ),
                 "essential": True,
                 "environment": [
                     {"name": "DOWNLOAD_URL", "value": presigned_download_url},

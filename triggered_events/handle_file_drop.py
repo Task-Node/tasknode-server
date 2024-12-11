@@ -5,13 +5,12 @@ try:
 except ImportError:
     pass
 
-from database import session_scope, init_engine
 from constants import JobStatus
-from utils.logger import logger
-from utils.s3 import get_file_metadata
-
+from database import init_engine, session_scope
 from models.job_models import Job
 from models.user_models import User
+from utils.logger import logger
+from utils.s3 import get_file_metadata
 
 
 def handler(event, context, s3_bucket=None, s3_key=None):

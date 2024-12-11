@@ -1,14 +1,14 @@
-""" Add jobs and users
+"""Add jobs and users
 
 Revision ID: ccf63450ffc1
-Revises: 
+Revises:
 Create Date: 2024-11-26 13:26:17.546318
 
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "ccf63450ffc1"

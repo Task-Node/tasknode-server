@@ -1,4 +1,4 @@
-""" update fargate_task_arn column to fargate_task_id
+"""update fargate_task_arn column to fargate_task_id
 
 Revision ID: e3d02a8e5b1a
 Revises: d98166c1dda2
@@ -7,8 +7,6 @@ Create Date: 2024-12-04 22:09:32.509816
 """
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision = "e3d02a8e5b1a"

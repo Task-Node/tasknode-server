@@ -1,6 +1,7 @@
 import traceback
+
 import boto3
-from fastapi import APIRouter, Security, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Security
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
@@ -9,8 +10,6 @@ from database import get_db
 from models.user_models import User
 from utils.auth import VerifyToken
 from utils.logger import logger
-from utils.email import send_email, VERIFICATION_TEMPLATE
-
 
 auth = VerifyToken()
 
@@ -98,7 +97,7 @@ async def login(user_data: UserCreate, session: Session = Depends(get_db)):
                 "PASSWORD": user_data.password,
             },
         )
-        
+
         return {
             "email": user_data.email,
             "access_token": auth_response["AuthenticationResult"]["AccessToken"],
@@ -127,7 +126,7 @@ async def verify_user(verification_data: UserVerification):
         boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
         cognito_client = boto_session.client("cognito-idp")
 
-        response = cognito_client.confirm_sign_up(
+        cognito_client.confirm_sign_up(
             ClientId=settings.COGNITO_CLIENT_ID,
             Username=verification_data.email,
             ConfirmationCode=verification_data.verification_code,
@@ -147,9 +146,7 @@ async def resend_verification(email_data: EmailRequest):
         cognito_client = boto_session.client("cognito-idp")
 
         # Resend verification code
-        response = cognito_client.resend_confirmation_code(
-            ClientId=settings.COGNITO_CLIENT_ID, Username=email_data.email
-        )
+        cognito_client.resend_confirmation_code(ClientId=settings.COGNITO_CLIENT_ID, Username=email_data.email)
 
         return {"message": "Verification code resent successfully"}
     except Exception as e:
@@ -165,7 +162,7 @@ async def forgot_password(email_data: EmailRequest):
         cognito_client = boto_session.client("cognito-idp")
 
         # Initiate forgot password flow
-        response = cognito_client.forgot_password(ClientId=settings.COGNITO_CLIENT_ID, Username=email_data.email)
+        cognito_client.forgot_password(ClientId=settings.COGNITO_CLIENT_ID, Username=email_data.email)
 
         return {"message": "If your email exists in our system, you will receive a password reset code"}
     except Exception as e:
@@ -183,7 +180,7 @@ async def confirm_forgot_password(reset_data: ConfirmForgotPassword):
         cognito_client = boto_session.client("cognito-idp")
 
         # Confirm forgot password
-        response = cognito_client.confirm_forgot_password(
+        cognito_client.confirm_forgot_password(
             ClientId=settings.COGNITO_CLIENT_ID,
             Username=reset_data.email,
             Password=reset_data.new_password,

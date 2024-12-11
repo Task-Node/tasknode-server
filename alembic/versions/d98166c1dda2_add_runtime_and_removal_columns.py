@@ -1,4 +1,4 @@
-""" Add runtime and removal columns
+"""Add runtime and removal columns
 
 Revision ID: d98166c1dda2
 Revises: abb745357a1c
@@ -6,9 +6,9 @@ Create Date: 2024-12-04 20:50:07.747972
 
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "d98166c1dda2"

@@ -1,5 +1,6 @@
 import json
 import os
+
 from config import get_settings
 
 env = os.environ.get("env", "dev").lower()  # default to dev
