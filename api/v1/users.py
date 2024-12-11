@@ -167,10 +167,12 @@ async def forgot_password(email_data: EmailRequest):
         # Initiate forgot password flow
         response = cognito_client.forgot_password(ClientId=settings.COGNITO_CLIENT_ID, Username=email_data.email)
 
-        return {"message": "Password reset code sent to your email"}
+        return {"message": "If your email exists in our system, you will receive a password reset code"}
     except Exception as e:
+        # Log the error but don't expose it to the user
         logger.error(f"Error initiating password reset: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=400, detail=str(e))
+        # Return the same message even if there's an error
+        return {"message": "If your email exists in our system, you will receive a password reset code"}
 
 
 @router.post("/confirm-forgot-password")
