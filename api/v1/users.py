@@ -32,7 +32,7 @@ class UserVerification(BaseModel):
     verification_code: str
 
 
-class ConfirmForgotPassword(BaseModel):
+class ConfirmToken(BaseModel):
     email: str
     new_password: str
     confirmation_code: str
@@ -161,8 +161,8 @@ async def resend_verification(email_data: EmailRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/forgot-password")
-async def forgot_password(email_data: EmailRequest):
+@router.post("/reset-password")
+async def reset_password(email_data: EmailRequest):
     try:
         # Create Cognito client
         boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
@@ -179,8 +179,9 @@ async def forgot_password(email_data: EmailRequest):
         return {"message": "If your email exists in our system, you will receive a password reset code"}
 
 
-@router.post("/confirm-forgot-password")
-async def confirm_forgot_password(reset_data: ConfirmForgotPassword):
+
+@router.post("/confirm-reset-password")
+async def confirm_reset_password(reset_data: ConfirmToken):
     try:
         # Create Cognito client
         boto_session = boto3.Session(profile_name=settings.AWS_PROFILE)
