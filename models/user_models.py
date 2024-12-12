@@ -1,14 +1,13 @@
-from datetime import datetime
-
-import boto3
-from sqlalchemy import BigInteger, Column, DateTime, String
+from sqlalchemy import BigInteger, Column, DateTime, String, Boolean
 from sqlalchemy.orm import relationship
-
-from config import settings
+from utils.utils import get_utc_now
 from database import Base
+from datetime import datetime
+import boto3
+from config import settings
+
 from exceptions import TaskNodeException
 from utils.logger import logger
-from utils.utils import get_utc_now
 
 
 class User(Base):

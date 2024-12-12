@@ -1,4 +1,4 @@
-"""Add job_files table
+""" Add job_files table
 
 Revision ID: abb745357a1c
 Revises: babbe34938f9
@@ -6,9 +6,9 @@ Create Date: 2024-12-03 22:40:10.186209
 
 """
 
+from alembic import op
 import sqlalchemy as sa
 
-from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "abb745357a1c"

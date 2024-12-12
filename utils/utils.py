@@ -1,8 +1,6 @@
-import datetime
-
 import boto3
 from botocore.exceptions import ClientError
-
+import datetime
 from config import settings
 
 

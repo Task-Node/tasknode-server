@@ -1,8 +1,7 @@
 """Helper utilities for testing."""
 
+from database import db_session, init_db, drop_db
 from sqlalchemy.orm.session import close_all_sessions
-
-from database import db_session, drop_db, init_db
 
 
 class BaseTestCase:

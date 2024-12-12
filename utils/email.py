@@ -1,9 +1,9 @@
 from typing import List
-
+from config import settings
 import resend
 
-from config import settings
 from utils.logger import logger
+from utils.utils import get_secret
 
 FILE_GENERATED_TEMPLATE = """
 <li>{file_name}</li>

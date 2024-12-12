@@ -1,10 +1,9 @@
-import uuid
 from datetime import datetime
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, HTTPException, Security, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing import Optional
+import uuid
 
 from config import settings
 from constants import FileType
@@ -13,6 +12,7 @@ from models.job_models import Job, JobFiles
 from models.user_models import User
 from utils.auth import VerifyToken
 from utils.s3 import get_signed_upload_url, get_signed_url
+
 
 auth = VerifyToken()
 

@@ -1,24 +1,22 @@
-import uuid
-from datetime import datetime
-
 import boto3
+from datetime import datetime
 from sqlalchemy import (
-    BigInteger,
-    Boolean,
     Column,
     DateTime,
-    ForeignKey,
     String,
-)
-from sqlalchemy import (
     Enum as SQLAlchemyEnum,
+    BigInteger,
+    ForeignKey,
+    Boolean,
 )
 from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
-from config import settings
-from constants import FileType, JobStatus
-from database import Base
+
+from constants import JobStatus, FileType
 from utils.utils import get_utc_now
+from database import Base
+from config import settings
 
 
 class Job(Base):
@@ -203,11 +201,7 @@ class JobFiles(Base):
         self.created_at = get_utc_now()
 
     def __repr__(self):
-        return (
-            f"<JobFiles {self.id} {self.job_id} {self.s3_bucket} "
-            f"{self.s3_key} {self.file_name} {self.file_size} "
-            f"{self.file_timestamp} {self.file_type}>"
-        )
+        return f"<JobFiles {self.id} {self.job_id} {self.s3_bucket} {self.s3_key} {self.file_name} {self.file_size} {self.file_timestamp} {self.file_type}>"
 
     @classmethod
     def create(

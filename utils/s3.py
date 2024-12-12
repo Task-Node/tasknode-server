@@ -1,5 +1,4 @@
 import boto3
-
 from config import settings
 from utils.logger import logger
 

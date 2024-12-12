@@ -1,4 +1,4 @@
-"""Add fargate arn
+""" Add fargate arn
 
 Revision ID: e5acf335b645
 Revises: ccf63450ffc1
@@ -6,9 +6,9 @@ Create Date: 2024-11-26 14:47:41.225465
 
 """
 
+from alembic import op
 import sqlalchemy as sa
 
-from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "e5acf335b645"

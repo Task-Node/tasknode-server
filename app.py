@@ -11,10 +11,11 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from mangum import Mangum
 
-from api.v1 import jobs, users
-from config import settings
+
 from database import init_engine
 from exceptions import TaskNodeException
+from config import settings
+from api.v1 import jobs, users
 from utils.logger import logger
 
 

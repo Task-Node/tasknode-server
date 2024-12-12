@@ -8,5 +8,5 @@ class Local(Default):
         env_file = ".env.local"
         env_file_encoding = "utf-8"
 
-    ENV: str = "Local"
+    ENV = "Local"
     SQLALCHEMY_DATABASE_URI: str = os.environ.get("SQLALCHEMY_DATABASE_URI") or "postgresql://localhost:5432/tasknode"

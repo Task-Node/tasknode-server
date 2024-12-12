@@ -1,5 +1,4 @@
 from fastapi.testclient import TestClient
-
 from app import app
 from utils.test_utils import BaseTestCase
 
