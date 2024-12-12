@@ -1,7 +1,7 @@
 import traceback
 import boto3
 from fastapi import APIRouter, Security, Depends, HTTPException
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from config import settings
@@ -17,7 +17,7 @@ auth = VerifyToken()
 
 # Define request/response models
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
@@ -28,22 +28,22 @@ class UserResponse(BaseModel):
 
 
 class UserVerification(BaseModel):
-    email: EmailStr
+    email: str
     verification_code: str
 
 
 class ConfirmForgotPassword(BaseModel):
-    email: EmailStr
+    email: str
     new_password: str
     confirmation_code: str
 
 
 class EmailRequest(BaseModel):
-    email: EmailStr
+    email: str
 
 
 class AccountInfo(BaseModel):
-    email: EmailStr
+    email: str
 
 
 # Update the router to include the database session dependency
