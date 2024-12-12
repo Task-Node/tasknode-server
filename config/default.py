@@ -17,10 +17,10 @@ class Default(BaseSettings):
     SQLALCHEMY_DATABASE_URI: str = ""
     CUSTOM_DOMAIN: str = ""
     ROOT_PATH: str = ""
-    AWS_PROFILE: str = ""
-    ADMIN_EMAILS: List[str] = os.environ["ADMIN_EMAILS"]
-    COGNITO_CLIENT_ID: str = os.environ["COGNITO_CLIENT_ID"]
-    COGNITO_USER_POOL: str = os.environ["COGNITO_USER_POOL"]
+    AWS_PROFILE: str | None = None
+    ADMIN_EMAILS: List[str] = []
+    COGNITO_CLIENT_ID: str = ""
+    COGNITO_USER_POOL: str = ""
     COGNITO_USER_POOL_ID: str = os.environ["COGNITO_USER_POOL_ID"]
     COGNITO_USER_POOL_REGION: str = "us-east-1"
     COGNITO_WEB_CLIENT_ID: str = "tasknode-dev-client"

@@ -41,6 +41,10 @@ class EmailRequest(BaseModel):
     email: EmailStr
 
 
+class AccountInfo(BaseModel):
+    email: EmailStr
+
+
 # Update the router to include the database session dependency
 router = APIRouter(prefix="/api/v1/users", tags=["Users API v1"])
 
@@ -216,9 +220,16 @@ async def refresh_token(refresh_token: str):
 
 
 @router.get("/verify-token")
-async def verify_token(user=Security(auth.get_current_user)):
+async def verify_token(current_user=Security(auth.get_current_user)):
     """
     Endpoint to verify if a token is still valid.
     The Security dependency will raise a 401 if the token is invalid.
     """
     return {"message": "Token is valid"}
+
+
+@router.get("/account/info", response_model=AccountInfo)
+async def get_account_info(session: Session = Depends(get_db), current_user=Security(auth.get_current_user)):
+    cognito_id = current_user["sub"]
+    user = User.get_by_cognito_id(session, cognito_id)
+    return {"email": user.email}
