@@ -6,5 +6,5 @@ env = os.environ.get("env", "dev").lower()  # default to dev
 settings = get_settings(env)
 
 f = open(f"serverless_config_{env}.json", "w")
-json.dump(settings.dict(), f)
+json.dump(settings.model_dump(), f)
 f.close()

@@ -14,6 +14,4 @@ class Production(Default):
     # # unless using a custom domain.
     # ROOT_PATH: str = "/prd"
 
-
     CUSTOM_DOMAIN: str = "chai-chat-api-prd.foobar.dev"
-

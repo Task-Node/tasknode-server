@@ -20,8 +20,9 @@ class Default(BaseSettings):
     ADMIN_EMAILS: List[str] = []
 
     API_KEY: str = os.environ["API_KEY"]
-    CACHE_DISABLED: bool = False
+    API_URL: str = os.environ["API_URL"]
 
+    CACHE_DISABLED: bool = False
 
     # VPC Configuration
     VPC_SECURITY_GROUP_IDS: List[str] = os.environ["VPC_SECURITY_GROUP_IDS"]

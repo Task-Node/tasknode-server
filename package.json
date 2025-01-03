@@ -18,8 +18,8 @@
     "lint": "black .",
     "generate_config": "cross-env env=dev python -m scripts.generate_serverless_config",
     "generate_config:prd": "cross-env env=prd python -m scripts.generate_serverless_config",
-    "deploy": "npm install && cross-env env=dev python -m scripts.generate_serverless_config && sh -c 'env=dev sh scripts/container_deploy.sh' && cross-env AWS_PROFILE=default sls deploy --stage=dev",
-    "deploy:prd": "npm install && cross-env env=prd python -m scripts.generate_serverless_config && sh -c 'env=prd sh scripts/container_deploy.sh' && cross-env AWS_PROFILE=default sls deploy --stage=prd",
+    "deploy": "npm install && cross-env env=dev python -m scripts.generate_serverless_config && cross-env AWS_PROFILE=default sls deploy --stage=dev",
+    "deploy:prd": "npm install && cross-env env=prd python -m scripts.generate_serverless_config && cross-env AWS_PROFILE=default sls deploy --stage=prd",
     "undeploy": "cross-env env=dev sls AWS_PROFILE=default remove --stage=dev",
     "undeploy:prd": "cross-env env=prd AWS_PROFILE=default sls remove --stage=prd"
   },
