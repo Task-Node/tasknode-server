@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "tasknode"  
+name = "chai-chat-demo-server"  
 version = "0.0.0"
-description = "Tasknode Server"
+description = "Chai Chat Demo Server"
 authors = ["Daniel Newman <me@dtnewman.com>"]
 license = ""
 package-mode = false
@@ -20,7 +20,6 @@ pytest-cov = "^4.1.0"
 psycopg2-binary = "^2.9.10"
 python-dotenv = "^1.0.1"
 pyjwt = "^2.10.1"
-resend = "^2.4.0"
 requests = "^2.31.0"
 sqlalchemy = "^2.0.36"
 uvicorn = {extras = ["standard"], version = "^0.22.0"}

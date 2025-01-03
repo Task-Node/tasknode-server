@@ -14,12 +14,6 @@ class Production(Default):
     # # unless using a custom domain.
     # ROOT_PATH: str = "/prd"
 
-    # s3
-    FILE_DROP_BUCKET: str = "tasknode-file-drop-prd"
-    PROCESSED_FILES_BUCKET: str = "tasknode-processed-files-prd"
 
-    CUSTOM_DOMAIN: str = "api.tasknode.dev"
+    CUSTOM_DOMAIN: str = "chai-chat-api-prd.foobar.dev"
 
-    # ecs
-    ECS_CLUSTER: str = os.environ.get("ECS_CLUSTER", "TASKNODE-CLUSTER-PRD")
-    ECS_TASK_EXECUTION_ROLE: str = os.environ.get("ECS_TASK_EXECUTION_ROLE", "TASKNODE-TASK-EXECUTION-ROLE-PRD")

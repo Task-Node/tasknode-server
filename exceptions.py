@@ -1,4 +1,4 @@
-class TaskNodeException(Exception):
+class ChatDemoException(Exception):
     default_message = "Backend error"
     default_status_code = 400
 

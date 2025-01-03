@@ -1,7 +1,7 @@
 {
-  "name": "tasknode",
+  "name": "chai-chat-demo-server",
   "version": "0.0.0",
-  "description": "tasknode Server",
+  "description": "Chai Chat Demo Server",
   "devDependencies": {
     "cross-env": "^7.0.3",
     "serverless": "^3.38.0",

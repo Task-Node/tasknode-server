@@ -13,9 +13,9 @@ from mangum import Mangum
 
 
 from database import init_engine
-from exceptions import TaskNodeException
+from exceptions import ChatDemoException
 from config import settings
-from api.v1 import jobs, users
+from api.v1 import chat
 from utils.logger import logger
 
 
@@ -50,8 +50,7 @@ def create_app():
     app.add_middleware(GZipMiddleware, minimum_size=1000)
 
     logger.info("Including routers")
-    app.include_router(jobs.router)
-    app.include_router(users.router)
+    app.include_router(chat.router)
 
     @app.get("/", include_in_schema=False)
     async def home():
@@ -61,8 +60,8 @@ def create_app():
     async def status():
         return {"status": "ok"}
 
-    @app.exception_handler(TaskNodeException)
-    async def app_exception_handler(req, exc: TaskNodeException):
+    @app.exception_handler(ChatDemoException)
+    async def app_exception_handler(req, exc: ChatDemoException):
         return JSONResponse(status_code=exc.status_code, content=dict(message=exc.message))
 
     return app
